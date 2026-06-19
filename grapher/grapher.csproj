@@ -130,6 +130,8 @@
     <Compile Include="Models\Charts\ChartState\XYOneGraphState.cs" />
     <Compile Include="Models\Charts\ChartState\XYTwoGraphState.cs" />
     <Compile Include="Models\Devices\DeviceDialogItem.cs" />
+    <Compile Include="Models\Mouse\CountsMsRecorder.cs" />
+    <Compile Include="Models\Mouse\CountsMsRecordingResult.cs" />
     <Compile Include="Models\Mouse\MouseData.cs" />
     <Compile Include="Models\Mouse\MouseWatcher.cs" />
     <Compile Include="Models\Mouse\PointData.cs" />

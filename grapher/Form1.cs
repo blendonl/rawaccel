@@ -5,6 +5,7 @@ using System.Linq;
 using System.Windows.Forms;
 using System.Runtime.InteropServices;
 using grapher.Models;
+using grapher.Models.Mouse;
 using System.IO;
 using grapher.Models.Serialized;
 using grapher.Models.Theming;
@@ -14,6 +15,7 @@ namespace grapher
 {
     public partial class RawAcceleration : Form
     {
+        private readonly ToolStripMenuItem recordCountsMsMenuItem;
 
         #region Constructor
 
@@ -63,6 +65,8 @@ namespace grapher
             }
 
             menuStrip1.Items.AddRange(new ToolStripItem[] { themeMenuItem, HelpMenuItem });
+            recordCountsMsMenuItem = CreateRecordCountsMsMenuItem();
+            graphsToolStripMenuItem.DropDownItems.Add(recordCountsMsMenuItem);
 
             Theme.Apply(this, menuStrip1);
 
@@ -269,6 +273,46 @@ namespace grapher
         #endregion Properties
 
         #region Methods
+
+        private ToolStripMenuItem CreateRecordCountsMsMenuItem()
+        {
+            var item = new ToolStripMenuItem("Record Counts/ms");
+            item.Click += RecordCountsMsMenuItem_Click;
+            return item;
+        }
+
+        private void RecordCountsMsMenuItem_Click(object sender, EventArgs e)
+        {
+            if (AccelGUI.MouseWatcher.IsRecordingCountsMs)
+            {
+                var result = AccelGUI.MouseWatcher.StopCountsMsRecording();
+                recordCountsMsMenuItem.Text = "Record Counts/ms";
+                ShowCountsMsRecordingResult(result);
+                return;
+            }
+
+            AccelGUI.MouseWatcher.StartCountsMsRecording();
+            recordCountsMsMenuItem.Text = "Stop Counts/ms Recording";
+        }
+
+        private void ShowCountsMsRecordingResult(CountsMsRecordingResult result)
+        {
+            var message = result.HasSamples
+                ? string.Format(
+                    "Duration: {0:0.##} ms\r\nSamples: {1}\r\n\r\nAvg: {2:0.###} counts/ms\r\nAvg min: {3:0.###} counts/ms\r\nAvg max: {4:0.###} counts/ms",
+                    result.DurationMilliseconds,
+                    result.SampleCount,
+                    result.AverageCountsPerMillisecond,
+                    result.MinAverageCountsPerMillisecond,
+                    result.MaxAverageCountsPerMillisecond)
+                : "No mouse movement was recorded.";
+
+            using (var form = new MessageDialog(message, "Counts/ms Recording"))
+            {
+                Theme.Apply(form);
+                form.ShowDialog();
+            }
+        }
 
         protected override void WndProc(ref Message m)
         {

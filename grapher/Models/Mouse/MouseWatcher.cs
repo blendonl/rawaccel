@@ -692,6 +692,7 @@ namespace grapher.Models.Mouse
             AccelCharts = accelCharts;
             SettingsManager = setMngr;
             MouseData = new MouseData();
+            CountsMsRecorder = new CountsMsRecorder();
 
             LastMoveDisplayFormat = Constants.MouseMoveDefaultFormat;
             LastMoveNormalized = false;
@@ -723,6 +724,8 @@ namespace grapher.Models.Mouse
 
         private MouseData MouseData { get; }
 
+        private CountsMsRecorder CountsMsRecorder { get; }
+
         private Stopwatch Stopwatch { get; }
 
         private string LastMoveDisplayFormat { get; set; }
@@ -742,6 +745,22 @@ namespace grapher.Models.Mouse
         {
             MouseData.Get(out var x, out var y);
             Display.Text = string.Format(LastMoveDisplayFormat, x, y);
+        }
+
+        public bool IsRecordingCountsMs
+        {
+            get => CountsMsRecorder.IsRecording;
+        }
+
+        public void StartCountsMsRecording()
+        {
+            CountsMsRecorder.Start();
+            Stopwatch.Restart();
+        }
+
+        public CountsMsRecordingResult StopCountsMsRecording()
+        {
+            return CountsMsRecorder.Stop();
         }
 
         public void ReadMouseMove(Message message)
@@ -800,6 +819,7 @@ namespace grapher.Models.Mouse
                 }
 
                 MouseData.Set(rawInput.Data.Mouse.LastX, rawInput.Data.Mouse.LastY);
+                CountsMsRecorder.AddSample(rawInput.Data.Mouse.LastX, rawInput.Data.Mouse.LastY, time);
                 AccelCharts.MakeDots(x, y, time);
             }
 

@@ -11,7 +11,6 @@ namespace grapher
     public class CountsMsRecordingForm : Form
     {
         private const int RefreshIntervalMilliseconds = 100;
-        private const int MaxDisplayedSamples = 600;
 
         private readonly MouseWatcher mouseWatcher;
         private readonly Timer refreshTimer;
@@ -298,30 +297,28 @@ namespace grapher
             if (!result.HasSamples)
             {
                 countsChart.ChartAreas[0].AxisX.Minimum = 0;
+                countsChart.ChartAreas[0].AxisX.Maximum = 1;
                 return;
             }
 
             var samples = result.Samples;
-            var firstSampleIndex = Math.Max(0, samples.Count - MaxDisplayedSamples);
 
-            for (var i = firstSampleIndex; i < samples.Count; i++)
+            foreach (var sample in samples)
             {
-                var sample = samples[i];
                 countsChart.Series["Counts/ms"].Points.AddXY(
                     sample.ElapsedMilliseconds / 1000.0,
                     sample.CountsPerMillisecond);
             }
 
-            var startSeconds = firstSampleIndex < samples.Count
-                ? samples[firstSampleIndex].ElapsedMilliseconds / 1000.0
-                : 0;
-            var endSeconds = Math.Max(result.DurationMilliseconds / 1000.0, startSeconds + 0.001);
+            var startSeconds = 0;
+            var endSeconds = Math.Max(result.DurationMilliseconds / 1000.0, 1);
 
             AddHorizontalLine("Avg", startSeconds, endSeconds, result.AverageCountsPerMillisecond);
             AddHorizontalLine("Min avg", startSeconds, endSeconds, result.MinAverageCountsPerMillisecond);
             AddHorizontalLine("Max avg", startSeconds, endSeconds, result.MaxAverageCountsPerMillisecond);
 
-            countsChart.ChartAreas[0].AxisX.Minimum = Math.Max(0, startSeconds);
+            countsChart.ChartAreas[0].AxisX.Minimum = startSeconds;
+            countsChart.ChartAreas[0].AxisX.Maximum = endSeconds;
         }
 
         private void AddHorizontalLine(string seriesName, double startSeconds, double endSeconds, double value)

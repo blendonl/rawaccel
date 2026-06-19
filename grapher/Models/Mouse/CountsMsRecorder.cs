@@ -6,7 +6,6 @@ namespace grapher.Models.Mouse
     public class CountsMsRecorder
     {
         private const double WindowMilliseconds = 250;
-        private const int MaxStoredSamples = 600;
 
         public CountsMsRecorder()
         {
@@ -94,10 +93,6 @@ namespace grapher.Models.Mouse
             Samples.Add(new CountsMsRecordingSample(
                 TotalMilliseconds,
                 GetAverage(counts, milliseconds)));
-            if (Samples.Count > MaxStoredSamples)
-            {
-                Samples.RemoveAt(0);
-            }
 
             if (WindowTime >= WindowMilliseconds)
             {

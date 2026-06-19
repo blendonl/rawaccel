@@ -307,6 +307,10 @@ namespace grapher
 
         public AccelGUI AccelGUI { get; }
 
+        private bool RunInBackgroundEnabled => runInBackgroundMenuItem?.Checked ?? startInBackground;
+
+        private bool StartOnWindowsStartupEnabled => startOnWindowsStartupMenuItem?.Checked ?? false;
+
         #endregion Properties
 
         #region Methods
@@ -326,7 +330,7 @@ namespace grapher
                 ContextMenuStrip = menu,
                 Icon = Icon,
                 Text = "Raw Accel",
-                Visible = runInBackgroundMenuItem.Checked || startInBackground
+                Visible = RunInBackgroundEnabled
             };
 
             icon.DoubleClick += (s, e) => RestoreFromTray();
@@ -347,7 +351,7 @@ namespace grapher
             {
                 if (startOnWindowsStartupMenuItem.Checked)
                 {
-                    MakeStartupShortcut(true, runInBackgroundMenuItem.Checked);
+                    MakeStartupShortcut(true, RunInBackgroundEnabled);
                 }
                 else
                 {
@@ -373,11 +377,11 @@ namespace grapher
             UpdateTrayIconVisibility();
             AccelGUI.Settings.SaveGUISettingsFromFields();
 
-            if (!startOnWindowsStartupMenuItem.Checked) return;
+            if (!StartOnWindowsStartupEnabled) return;
 
             try
             {
-                MakeStartupShortcut(true, runInBackgroundMenuItem.Checked);
+                MakeStartupShortcut(true, RunInBackgroundEnabled);
             }
             catch (Exception ex)
             {
@@ -389,7 +393,7 @@ namespace grapher
         {
             if (trayIcon != null)
             {
-                trayIcon.Visible = runInBackgroundMenuItem.Checked || !Visible;
+                trayIcon.Visible = RunInBackgroundEnabled || !Visible;
             }
         }
 
@@ -641,7 +645,7 @@ namespace grapher
             Properties.Settings.Default.Location = Location;
             Properties.Settings.Default.Save();
 
-            if (runInBackgroundMenuItem.Checked && !allowClose && e.CloseReason == CloseReason.UserClosing)
+            if (RunInBackgroundEnabled && !allowClose && e.CloseReason == CloseReason.UserClosing)
             {
                 e.Cancel = true;
                 HideToTray();
@@ -688,7 +692,7 @@ namespace grapher
         {
             base.OnResize(e);
 
-            if (runInBackgroundMenuItem.Checked && WindowState == FormWindowState.Minimized)
+            if (RunInBackgroundEnabled && WindowState == FormWindowState.Minimized)
             {
                 HideToTray();
             }

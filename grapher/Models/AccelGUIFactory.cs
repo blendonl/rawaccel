@@ -40,6 +40,8 @@ namespace grapher.Models
             ToolStripMenuItem showVelocityGainToolStripMenuItem,
             ToolStripMenuItem showLastMouseMoveMenuItem,
             ToolStripMenuItem autoWriteMenuItem,
+            ToolStripMenuItem startOnWindowsStartupMenuItem,
+            ToolStripMenuItem runInBackgroundMenuItem,
             ToolStripMenuItem deviceMenuItem,
             ToolStripMenuItem scaleMenuItem,
             ToolStripMenuItem themeMenuItem,
@@ -698,6 +700,8 @@ namespace grapher.Models
                 autoWriteMenuItem,
                 showLastMouseMoveMenuItem,
                 showVelocityGainToolStripMenuItem,
+                startOnWindowsStartupMenuItem,
+                runInBackgroundMenuItem,
                 themeMenuItem,
                 form
                 );

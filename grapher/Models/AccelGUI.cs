@@ -108,11 +108,7 @@ namespace grapher
 
         private void SaveGUISettingsOnClose(Object sender, FormClosingEventArgs e)
         {
-            var guiSettings = Settings.MakeGUISettingsFromFields();
-            if (!Settings.GuiSettings.Equals(guiSettings))
-            {
-                guiSettings.Save();
-            }
+            Settings.SaveGUISettingsFromFields();
         }
 
         public Profile MakeSettingsFromFields()

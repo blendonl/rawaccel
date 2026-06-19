@@ -1,11 +1,11 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Data;
 using System.Drawing;
 using System.Linq;
 using System.Windows.Forms;
 using System.Runtime.InteropServices;
 using grapher.Models;
-using grapher.Models.Mouse;
 using System.IO;
 using grapher.Models.Serialized;
 using grapher.Models.Theming;
@@ -18,6 +18,10 @@ namespace grapher
         private readonly bool startInBackground;
         private readonly NotifyIcon trayIcon;
         private readonly ToolStripMenuItem recordCountsMsMenuItem;
+        private readonly ToolStripMenuItem startOnWindowsStartupMenuItem;
+        private readonly ToolStripMenuItem runInBackgroundMenuItem;
+        private CountsMsRecordingForm countsMsRecordingForm;
+        private bool updatingApplicationSettingsMenuItems;
         private bool allowClose;
 
         #region Constructor
@@ -60,6 +64,18 @@ namespace grapher
             var settings = GUISettings.MaybeLoad();
 
             Theme.CurrentScheme = ColorSchemeManager.GetSelected(settings, schemes);
+
+            startOnWindowsStartupMenuItem = new ToolStripMenuItem("Start Raw Accel with Windows")
+            {
+                CheckOnClick = true,
+                Checked = settings?.StartOnWindowsStartup ?? StartupShortcutExists()
+            };
+
+            runInBackgroundMenuItem = new ToolStripMenuItem("Run in Background")
+            {
+                CheckOnClick = true,
+                Checked = settings?.RunInBackground ?? true
+            };
             
             foreach (var colorScheme in schemes)
             {
@@ -70,8 +86,12 @@ namespace grapher
             }
 
             menuStrip1.Items.AddRange(new ToolStripItem[] { themeMenuItem, HelpMenuItem });
+            advancedToolStripMenuItem.DropDownItems.Insert(0, new ToolStripSeparator());
+            advancedToolStripMenuItem.DropDownItems.Insert(0, runInBackgroundMenuItem);
+            advancedToolStripMenuItem.DropDownItems.Insert(0, startOnWindowsStartupMenuItem);
+
             recordCountsMsMenuItem = CreateRecordCountsMsMenuItem();
-            graphsToolStripMenuItem.DropDownItems.Add(recordCountsMsMenuItem);
+            menuStrip1.Items.Insert(1, recordCountsMsMenuItem);
 
             Theme.Apply(this, menuStrip1);
 
@@ -105,6 +125,8 @@ namespace grapher
                 showVelocityGainToolStripMenuItem,
                 showLastMouseMoveToolStripMenuItem,
                 AutoWriteMenuItem,
+                startOnWindowsStartupMenuItem,
+                runInBackgroundMenuItem,
                 DeviceMenuItem,
                 ScaleMenuItem,
                 themeMenuItem,
@@ -275,6 +297,8 @@ namespace grapher
                 LutApplyActiveXLabel,
                 LutApplyActiveYLabel);
 
+            WireApplicationSettingsMenuItems();
+
         }
 
         #endregion Constructor
@@ -302,57 +326,111 @@ namespace grapher
                 ContextMenuStrip = menu,
                 Icon = Icon,
                 Text = "Raw Accel",
-                Visible = true
+                Visible = runInBackgroundMenuItem.Checked || startInBackground
             };
 
             icon.DoubleClick += (s, e) => RestoreFromTray();
             return icon;
         }
 
+        private void WireApplicationSettingsMenuItems()
+        {
+            startOnWindowsStartupMenuItem.CheckedChanged += StartOnWindowsStartupMenuItem_CheckedChanged;
+            runInBackgroundMenuItem.CheckedChanged += RunInBackgroundMenuItem_CheckedChanged;
+        }
+
+        private void StartOnWindowsStartupMenuItem_CheckedChanged(object sender, EventArgs e)
+        {
+            if (updatingApplicationSettingsMenuItems) return;
+
+            try
+            {
+                if (startOnWindowsStartupMenuItem.Checked)
+                {
+                    MakeStartupShortcut(true, runInBackgroundMenuItem.Checked);
+                }
+                else
+                {
+                    RemoveStartupShortcuts();
+                }
+
+                AccelGUI.Settings.SaveGUISettingsFromFields();
+            }
+            catch (Exception ex)
+            {
+                updatingApplicationSettingsMenuItems = true;
+                startOnWindowsStartupMenuItem.Checked = !startOnWindowsStartupMenuItem.Checked;
+                updatingApplicationSettingsMenuItems = false;
+
+                ShowApplicationSettingsError("Could not update the Windows startup shortcut.", ex);
+            }
+        }
+
+        private void RunInBackgroundMenuItem_CheckedChanged(object sender, EventArgs e)
+        {
+            if (updatingApplicationSettingsMenuItems) return;
+
+            UpdateTrayIconVisibility();
+            AccelGUI.Settings.SaveGUISettingsFromFields();
+
+            if (!startOnWindowsStartupMenuItem.Checked) return;
+
+            try
+            {
+                MakeStartupShortcut(true, runInBackgroundMenuItem.Checked);
+            }
+            catch (Exception ex)
+            {
+                ShowApplicationSettingsError("The background setting was saved, but the Windows startup shortcut could not be updated.", ex);
+            }
+        }
+
+        private void UpdateTrayIconVisibility()
+        {
+            if (trayIcon != null)
+            {
+                trayIcon.Visible = runInBackgroundMenuItem.Checked || !Visible;
+            }
+        }
+
+        private void ShowApplicationSettingsError(string message, Exception ex)
+        {
+            MessageBox.Show(
+                message + "\r\n\r\n" + ex.Message,
+                "Raw Accel",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Error);
+        }
+
         private ToolStripMenuItem CreateRecordCountsMsMenuItem()
         {
-            var item = new ToolStripMenuItem("Record Counts/ms");
+            var item = new ToolStripMenuItem("Record");
             item.Click += RecordCountsMsMenuItem_Click;
             return item;
         }
 
         private void RecordCountsMsMenuItem_Click(object sender, EventArgs e)
         {
-            if (AccelGUI.MouseWatcher.IsRecordingCountsMs)
+            if (countsMsRecordingForm != null && !countsMsRecordingForm.IsDisposed)
             {
-                var result = AccelGUI.MouseWatcher.StopCountsMsRecording();
-                recordCountsMsMenuItem.Text = "Record Counts/ms";
-                ShowCountsMsRecordingResult(result);
+                countsMsRecordingForm.Activate();
                 return;
             }
 
-            AccelGUI.MouseWatcher.StartCountsMsRecording();
-            recordCountsMsMenuItem.Text = "Stop Counts/ms Recording";
-        }
-
-        private void ShowCountsMsRecordingResult(CountsMsRecordingResult result)
-        {
-            var message = result.HasSamples
-                ? string.Format(
-                    "Duration: {0:0.##} ms\r\nSamples: {1}\r\n\r\nAvg: {2:0.###} counts/ms\r\nAvg min: {3:0.###} counts/ms\r\nAvg max: {4:0.###} counts/ms",
-                    result.DurationMilliseconds,
-                    result.SampleCount,
-                    result.AverageCountsPerMillisecond,
-                    result.MinAverageCountsPerMillisecond,
-                    result.MaxAverageCountsPerMillisecond)
-                : "No mouse movement was recorded.";
-
-            using (var form = new MessageDialog(message, "Counts/ms Recording"))
-            {
-                Theme.Apply(form);
-                form.ShowDialog();
-            }
+            countsMsRecordingForm = new CountsMsRecordingForm(AccelGUI.MouseWatcher);
+            countsMsRecordingForm.FormClosed += (s, args) => countsMsRecordingForm = null;
+            countsMsRecordingForm.Show(this);
         }
 
         private void HideToTray()
         {
             Hide();
             ShowInTaskbar = false;
+
+            if (trayIcon != null)
+            {
+                trayIcon.Visible = true;
+            }
         }
 
         private void RestoreFromTray()
@@ -361,6 +439,7 @@ namespace grapher
             Show();
             WindowState = FormWindowState.Normal;
             Activate();
+            UpdateTrayIconVisibility();
         }
 
         protected override void WndProc(ref Message m)
@@ -408,7 +487,137 @@ namespace grapher
 
         #endregion Method
 
-        static void MakeStartupShortcut(bool gui)
+        static void MakeStartupShortcut(bool gui, bool background = false)
+        {
+            var startupFolder = GetStartupFolder();
+            dynamic shell = CreateWindowsScriptHostShell();
+
+            try
+            {
+                RemoveStartupShortcuts(startupFolder, shell);
+
+                var name = gui ? "rawaccel" : "writer";
+                var lnk = shell.CreateShortcut(Path.Combine(startupFolder, name + ".lnk"));
+
+                try
+                {
+                    if (gui && background) lnk.Arguments = "--background";
+                    if (!gui) lnk.Arguments = Constants.DefaultSettingsFileName;
+                    lnk.TargetPath = Path.Combine(Application.StartupPath, name + ".exe");
+                    lnk.WorkingDirectory = Application.StartupPath;
+                    lnk.Save();
+                }
+                finally
+                {
+                    Marshal.FinalReleaseComObject(lnk);
+                }
+            }
+            finally
+            {
+                Marshal.FinalReleaseComObject(shell);
+            }
+        }
+
+        static void RemoveStartupShortcuts()
+        {
+            var startupFolder = GetStartupFolder();
+            dynamic shell = CreateWindowsScriptHostShell();
+
+            try
+            {
+                RemoveStartupShortcuts(startupFolder, shell);
+            }
+            finally
+            {
+                Marshal.FinalReleaseComObject(shell);
+            }
+        }
+
+        static void RemoveStartupShortcuts(string startupFolder, dynamic shell)
+        {
+            foreach (var path in StartupShortcutPaths(startupFolder, shell))
+            {
+                File.Delete(path);
+            }
+        }
+
+        static bool StartupShortcutExists()
+        {
+            try
+            {
+                var startupFolder = GetStartupFolder();
+                dynamic shell = CreateWindowsScriptHostShell();
+
+                try
+                {
+                    return StartupShortcutPaths(startupFolder, shell).Any();
+                }
+                finally
+                {
+                    Marshal.FinalReleaseComObject(shell);
+                }
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        static IList<string> StartupShortcutPaths(string startupFolder, dynamic shell)
+        {
+            var paths = new List<string>();
+            var candidates = new[] { "rawaccel", "raw accel", "writer" };
+
+            foreach (string path in Directory.EnumerateFiles(startupFolder, "*.lnk"))
+            {
+                var fileName = Path.GetFileNameWithoutExtension(path).ToLowerInvariant();
+
+                if (!candidates.Any(fileName.Contains))
+                {
+                    continue;
+                }
+
+                var link = shell.CreateShortcut(path);
+                try
+                {
+                    string targetPath = link.TargetPath;
+
+                    if (IsRawAccelStartupTarget(targetPath))
+                    {
+                        paths.Add(path);
+                    }
+                }
+                finally
+                {
+                    Marshal.FinalReleaseComObject(link);
+                }
+            }
+
+            return paths;
+        }
+
+        static bool IsRawAccelStartupTarget(string targetPath)
+        {
+            if (string.IsNullOrEmpty(targetPath))
+            {
+                return false;
+            }
+
+            if (targetPath.EndsWith("rawaccel.exe", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            if (!targetPath.EndsWith("writer.exe", StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            var directory = new FileInfo(targetPath).Directory;
+            return directory != null && directory.Exists && directory.GetFiles("rawaccel.exe").Any();
+        }
+
+        static string GetStartupFolder()
         {
             var startupFolder = Environment.GetFolderPath(Environment.SpecialFolder.Startup);
 
@@ -417,57 +626,13 @@ namespace grapher
                 throw new Exception("Startup folder does not exist");
             }
 
-            //Windows Script Host Shell Object
+            return startupFolder;
+        }
+
+        static dynamic CreateWindowsScriptHostShell()
+        {
             Type t = Type.GetTypeFromCLSID(new Guid("72C24DD5-D70A-438B-8A42-98424B88AFB8"));
-            dynamic shell = Activator.CreateInstance(t);
-
-            try
-            {
-                // Delete any other RA related startup shortcuts
-                var candidates = new[] { "rawaccel", "raw accel", "writer" };
-
-                foreach (string path in Directory.EnumerateFiles(startupFolder, "*.lnk")
-                    .Where(f => candidates.Any(f.Substring(startupFolder.Length).ToLower().Contains)))
-                {
-                    var link = shell.CreateShortcut(path);
-                    try
-                    {
-                        string targetPath = link.TargetPath;
-
-                        if (!(targetPath is null) && 
-                            (targetPath.EndsWith("rawaccel.exe") ||
-                                targetPath.EndsWith("writer.exe") &&
-                                    new FileInfo(targetPath).Directory.GetFiles("rawaccel.exe").Any()))
-                        {
-                            File.Delete(path);
-                        }
-                    }
-                    finally
-                    {
-                        Marshal.FinalReleaseComObject(link);
-                    }
-                }
-
-                var name = gui ? "rawaccel" : "writer";
-
-                var lnk = shell.CreateShortcut($@"{startupFolder}\{name}.lnk");
-
-                try
-                {
-                    if (!gui) lnk.Arguments = Constants.DefaultSettingsFileName;
-                    lnk.TargetPath = $@"{Application.StartupPath}\{name}.exe";
-                    lnk.Save();
-                }
-                finally
-                {
-                    Marshal.FinalReleaseComObject(lnk);
-                }
-
-            }
-            finally
-            {
-                Marshal.FinalReleaseComObject(shell);
-            }
+            return Activator.CreateInstance(t);
         }
 
         private void RawAcceleration_FormClosing(object sender, FormClosingEventArgs e)
@@ -476,7 +641,7 @@ namespace grapher
             Properties.Settings.Default.Location = Location;
             Properties.Settings.Default.Save();
 
-            if (!allowClose && e.CloseReason == CloseReason.UserClosing)
+            if (runInBackgroundMenuItem.Checked && !allowClose && e.CloseReason == CloseReason.UserClosing)
             {
                 e.Cancel = true;
                 HideToTray();
@@ -523,7 +688,7 @@ namespace grapher
         {
             base.OnResize(e);
 
-            if (WindowState == FormWindowState.Minimized)
+            if (runInBackgroundMenuItem.Checked && WindowState == FormWindowState.Minimized)
             {
                 HideToTray();
             }

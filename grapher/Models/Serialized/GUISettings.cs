@@ -41,6 +41,16 @@ namespace grapher.Models.Serialized
         [DefaultValue("Light Theme")]
         public string CurrentColorScheme { get; set; }
 
+        [JsonProperty(Order = 7)]
+        public bool StartOnWindowsStartup { get; set; }
+
+        [JsonProperty(
+            Order = 8,
+            DefaultValueHandling = DefaultValueHandling.Populate
+        )]
+        [DefaultValue(true)]
+        public bool RunInBackground { get; set; }
+
         #endregion Properties
 
         #region Methods
@@ -64,7 +74,9 @@ namespace grapher.Models.Serialized
                 ShowLastMouseMove == other.ShowLastMouseMove &&
                 ShowVelocityAndGain == other.ShowVelocityAndGain &&
                 AutoWriteToDriverOnStartup == other.AutoWriteToDriverOnStartup &&
-                CurrentColorScheme == other.CurrentColorScheme;
+                CurrentColorScheme == other.CurrentColorScheme &&
+                StartOnWindowsStartup == other.StartOnWindowsStartup &&
+                RunInBackground == other.RunInBackground;
         }
 
         public override int GetHashCode()
@@ -74,7 +86,9 @@ namespace grapher.Models.Serialized
                 ShowLastMouseMove.GetHashCode() ^
                 ShowVelocityAndGain.GetHashCode() ^
                 AutoWriteToDriverOnStartup.GetHashCode() ^
-                CurrentColorScheme.GetHashCode();
+                (CurrentColorScheme ?? string.Empty).GetHashCode() ^
+                StartOnWindowsStartup.GetHashCode() ^
+                RunInBackground.GetHashCode();
         }
 
         public void Save()

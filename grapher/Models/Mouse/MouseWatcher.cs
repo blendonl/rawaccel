@@ -763,6 +763,11 @@ namespace grapher.Models.Mouse
             return CountsMsRecorder.Stop();
         }
 
+        public CountsMsRecordingResult GetCountsMsRecordingSnapshot()
+        {
+            return CountsMsRecorder.Snapshot();
+        }
+
         public void ReadMouseMove(Message message)
         {
             RawInput rawInput;

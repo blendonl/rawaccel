@@ -24,6 +24,8 @@ namespace grapher.Models.Serialized
             ToolStripMenuItem autoWrite,
             ToolStripMenuItem showLastMouseMove,
             ToolStripMenuItem showVelocityAndGain,
+            ToolStripMenuItem startOnWindowsStartup,
+            ToolStripMenuItem runInBackground,
             ToolStripMenuItem themeMenu,
             Form form
             )
@@ -33,6 +35,8 @@ namespace grapher.Models.Serialized
             AutoWriteMenuItem = autoWrite;
             ShowLastMouseMoveMenuItem = showLastMouseMove;
             ShowVelocityAndGainMoveMenuItem = showVelocityAndGain;
+            StartOnWindowsStartupMenuItem = startOnWindowsStartup;
+            RunInBackgroundMenuItem = runInBackground;
             ThemeMenu = themeMenu;
             Form = form;
 
@@ -142,6 +146,8 @@ namespace grapher.Models.Serialized
         private ToolStripMenuItem ShowLastMouseMoveMenuItem { get; set; }
 
         private ToolStripMenuItem ShowVelocityAndGainMoveMenuItem { get; set; }
+        private ToolStripMenuItem StartOnWindowsStartupMenuItem { get; set; }
+        private ToolStripMenuItem RunInBackgroundMenuItem { get; set; }
         private ToolStripMenuItem ThemeMenu { get; set; }
         private string SelectedTheme { get; set; }
         private Form Form { get; set; }
@@ -163,6 +169,8 @@ namespace grapher.Models.Serialized
             ShowLastMouseMoveMenuItem.Checked = GuiSettings.ShowLastMouseMove;
             ShowVelocityAndGainMoveMenuItem.Checked = GuiSettings.ShowVelocityAndGain;
             AutoWriteMenuItem.Checked = GuiSettings.AutoWriteToDriverOnStartup;
+            StartOnWindowsStartupMenuItem.Checked = GuiSettings.StartOnWindowsStartup;
+            RunInBackgroundMenuItem.Checked = GuiSettings.RunInBackground;
         }
 
         public bool TryActivate(Profile settings, out string errors)
@@ -217,8 +225,20 @@ namespace grapher.Models.Serialized
                 ShowLastMouseMove = ShowLastMouseMoveMenuItem.Checked,
                 ShowVelocityAndGain = ShowVelocityAndGainMoveMenuItem.Checked,
                 AutoWriteToDriverOnStartup = AutoWriteMenuItem.Checked,
+                StartOnWindowsStartup = StartOnWindowsStartupMenuItem.Checked,
+                RunInBackground = RunInBackgroundMenuItem.Checked,
                 CurrentColorScheme = SelectedTheme
             };
+        }
+
+        public void SaveGUISettingsFromFields()
+        {
+            var guiSettings = MakeGUISettingsFromFields();
+            if (GuiSettings == null || !GuiSettings.Equals(guiSettings))
+            {
+                GuiSettings = guiSettings;
+                GuiSettings.Save();
+            }
         }
 
         public void SetActiveHandles()

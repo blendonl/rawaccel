@@ -1,15 +1,19 @@
 ﻿using System;
+using System.Collections.Generic;
 
 namespace grapher.Models.Mouse
 {
     public class CountsMsRecorder
     {
         private const double WindowMilliseconds = 250;
+        private const int MaxStoredSamples = 600;
 
         public CountsMsRecorder()
         {
             Reset();
         }
+
+        private List<CountsMsRecordingSample> Samples { get; } = new List<CountsMsRecordingSample>();
 
         private double TotalCounts { get; set; }
 
@@ -37,19 +41,40 @@ namespace grapher.Models.Mouse
 
         public CountsMsRecordingResult Stop()
         {
-            if (WindowCount == 0)
+            if (WindowTime > 0)
             {
                 FlushWindow();
             }
 
             IsRecording = false;
 
-            return new CountsMsRecordingResult(
-                SampleCount,
-                TotalMilliseconds,
-                GetAverage(TotalCounts, TotalMilliseconds),
+            return GetResult(
                 WindowCount > 0 ? MinWindowAverage : 0,
                 WindowCount > 0 ? MaxWindowAverage : 0);
+        }
+
+        public CountsMsRecordingResult Snapshot()
+        {
+            var minWindowAverage = WindowCount > 0 ? MinWindowAverage : 0;
+            var maxWindowAverage = WindowCount > 0 ? MaxWindowAverage : 0;
+
+            if (WindowTime > 0)
+            {
+                var currentWindowAverage = GetAverage(WindowCounts, WindowTime);
+
+                if (WindowCount == 0)
+                {
+                    minWindowAverage = currentWindowAverage;
+                    maxWindowAverage = currentWindowAverage;
+                }
+                else
+                {
+                    minWindowAverage = Math.Min(minWindowAverage, currentWindowAverage);
+                    maxWindowAverage = Math.Max(maxWindowAverage, currentWindowAverage);
+                }
+            }
+
+            return GetResult(minWindowAverage, maxWindowAverage);
         }
 
         public void AddSample(double x, double y, double milliseconds)
@@ -66,6 +91,13 @@ namespace grapher.Models.Mouse
             WindowCounts += counts;
             WindowTime += milliseconds;
             SampleCount++;
+            Samples.Add(new CountsMsRecordingSample(
+                TotalMilliseconds,
+                GetAverage(counts, milliseconds)));
+            if (Samples.Count > MaxStoredSamples)
+            {
+                Samples.RemoveAt(0);
+            }
 
             if (WindowTime >= WindowMilliseconds)
             {
@@ -75,6 +107,7 @@ namespace grapher.Models.Mouse
 
         private void Reset()
         {
+            Samples.Clear();
             TotalCounts = 0;
             TotalMilliseconds = 0;
             WindowCounts = 0;
@@ -105,6 +138,17 @@ namespace grapher.Models.Mouse
         private static double GetAverage(double counts, double milliseconds)
         {
             return milliseconds > 0 ? counts / milliseconds : 0;
+        }
+
+        private CountsMsRecordingResult GetResult(double minWindowAverage, double maxWindowAverage)
+        {
+            return new CountsMsRecordingResult(
+                SampleCount,
+                TotalMilliseconds,
+                GetAverage(TotalCounts, TotalMilliseconds),
+                minWindowAverage,
+                maxWindowAverage,
+                new List<CountsMsRecordingSample>(Samples));
         }
     }
 }

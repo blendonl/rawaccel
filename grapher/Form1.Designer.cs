@@ -19,6 +19,10 @@ namespace grapher
             {
                 components.Dispose();
             }
+            if (disposing)
+            {
+                trayIcon?.Dispose();
+            }
             base.Dispose(disposing);
         }
 
@@ -2588,4 +2592,3 @@ namespace grapher
         private System.Windows.Forms.TableLayoutPanel chartContainer;
     }
 }
-

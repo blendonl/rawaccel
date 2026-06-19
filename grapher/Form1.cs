@@ -15,13 +15,18 @@ namespace grapher
 {
     public partial class RawAcceleration : Form
     {
+        private readonly bool startInBackground;
+        private readonly NotifyIcon trayIcon;
         private readonly ToolStripMenuItem recordCountsMsMenuItem;
+        private bool allowClose;
 
         #region Constructor
 
 
-        public RawAcceleration()
+        public RawAcceleration(bool startInBackground = false)
         {
+            this.startInBackground = startInBackground;
+
             InitializeComponent();
 
             Version driverVersion = VersionHelper.ValidOrThrow();
@@ -69,6 +74,14 @@ namespace grapher
             graphsToolStripMenuItem.DropDownItems.Add(recordCountsMsMenuItem);
 
             Theme.Apply(this, menuStrip1);
+
+            trayIcon = CreateTrayIcon();
+
+            if (startInBackground)
+            {
+                WindowState = FormWindowState.Minimized;
+                ShowInTaskbar = false;
+            }
 
             AccelGUI = AccelGUIFactory.Construct(
                 this,
@@ -274,6 +287,28 @@ namespace grapher
 
         #region Methods
 
+        private NotifyIcon CreateTrayIcon()
+        {
+            var menu = new ContextMenuStrip();
+            menu.Items.Add("Open Raw Accel", null, (s, e) => RestoreFromTray());
+            menu.Items.Add("Exit", null, (s, e) =>
+            {
+                allowClose = true;
+                Close();
+            });
+
+            var icon = new NotifyIcon
+            {
+                ContextMenuStrip = menu,
+                Icon = Icon,
+                Text = "Raw Accel",
+                Visible = true
+            };
+
+            icon.DoubleClick += (s, e) => RestoreFromTray();
+            return icon;
+        }
+
         private ToolStripMenuItem CreateRecordCountsMsMenuItem()
         {
             var item = new ToolStripMenuItem("Record Counts/ms");
@@ -312,6 +347,20 @@ namespace grapher
                 Theme.Apply(form);
                 form.ShowDialog();
             }
+        }
+
+        private void HideToTray()
+        {
+            Hide();
+            ShowInTaskbar = false;
+        }
+
+        private void RestoreFromTray()
+        {
+            ShowInTaskbar = true;
+            Show();
+            WindowState = FormWindowState.Normal;
+            Activate();
         }
 
         protected override void WndProc(ref Message m)
@@ -426,6 +475,12 @@ namespace grapher
             Properties.Settings.Default.Size = Size;
             Properties.Settings.Default.Location = Location;
             Properties.Settings.Default.Save();
+
+            if (!allowClose && e.CloseReason == CloseReason.UserClosing)
+            {
+                e.Cancel = true;
+                HideToTray();
+            }
         }
 
         private void RawAcceleration_Shown(object sender, EventArgs e)
@@ -457,6 +512,22 @@ namespace grapher
                 }));
                 this.EndInvoke(result);
             }
+
+            if (startInBackground)
+            {
+                BeginInvoke(new MethodInvoker(HideToTray));
+            }
         }
+
+        protected override void OnResize(EventArgs e)
+        {
+            base.OnResize(e);
+
+            if (WindowState == FormWindowState.Minimized)
+            {
+                HideToTray();
+            }
+        }
+
     }
 }

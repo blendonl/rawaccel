@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Globalization;
+using System.Linq;
 using System.Windows.Forms;
 
 namespace grapher
@@ -10,7 +11,7 @@ namespace grapher
         /// The main entry point for the application.
         /// </summary>
         [STAThread]
-        static void Main()
+        static void Main(string[] args)
         {
             var mutex = new System.Threading.Mutex(true, "RawAccelGrapher", out bool result);
 
@@ -27,7 +28,10 @@ namespace grapher
 
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
-            Application.Run(new RawAcceleration());
+            Application.Run(new RawAcceleration(args.Any(a =>
+                string.Equals(a, "--background", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(a, "/background", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(a, "-background", StringComparison.OrdinalIgnoreCase))));
 
             GC.KeepAlive(mutex);      
         }

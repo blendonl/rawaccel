@@ -361,3 +361,4 @@ signed/**
 !signed/*/driver/
 !signed/*/driver/rawaccel.sys
 signed/RawAccel/
+dist/

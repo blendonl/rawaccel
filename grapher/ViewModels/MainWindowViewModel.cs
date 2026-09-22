@@ -11,6 +11,7 @@ using grapher.Charts;
 using grapher.Parameters;
 using grapher.Platform;
 using grapher.Settings;
+using grapher.Speed;
 using grapher.Theming;
 
 namespace grapher.ViewModels;
@@ -204,6 +205,8 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
 
     public DotSet? LastDots { get; private set; }
 
+    public SpeedRecorder SpeedRecorder { get; } = new();
+
     public double ChartMaxSpeed => CurveSampler.MaxSpeed(Gui.DPI);
 
     [ObservableProperty]
@@ -247,6 +250,9 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
 
     [ObservableProperty]
     private bool showLastMouseMove;
+
+    [ObservableProperty]
+    private bool showSpeedOverlay;
 
     [ObservableProperty]
     private bool autoApplyOnStartup;
@@ -307,9 +313,9 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
             return;
         }
 
-        double time = moveTimer.Elapsed.TotalMilliseconds;
+        double elapsed = moveTimer.Elapsed.TotalMilliseconds;
         moveTimer.Restart();
-        time = Math.Max(Math.Min(time, MaxMoveIntervalMs), 0.8 * 1000.0 / Gui.PollRate);
+        double time = Math.Max(Math.Min(elapsed, MaxMoveIntervalMs), 0.8 * 1000.0 / Gui.PollRate);
 
         double x = move.X;
         double y = move.Y;
@@ -328,6 +334,12 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         lastMove = (move.X, move.Y, normalized);
         pendingDots = AppliedCurves?.FindDots(x, y, time);
         dotsDirty = true;
+
+        if (SpeedRecorder.Enabled)
+        {
+            double inputSpeed = AppliedCurves?.InputSpeed(x, y, time) ?? 0;
+            SpeedRecorder.Record(inputSpeed, Math.Sqrt(x * x + y * y) / time, time, elapsed > MaxMoveIntervalMs);
+        }
     }
 
     public void OnDevicesChanged() => session.UpdateSystemDevices(MultiHandleDevice.GetList().ToList());

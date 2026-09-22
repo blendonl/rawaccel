@@ -1,0 +1,61 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:grapher.ViewModels"
+        xmlns:views="using:grapher.Views"
+        x:Class="grapher.Views.SpeedOverlayWindow"
+        x:DataType="vm:SpeedOverlayViewModel"
+        Title="Speed overlay"
+        Icon="/Assets/mouse.ico"
+        Width="300" Height="210"
+        CanResize="False"
+        WindowDecorations="None"
+        Topmost="True"
+        ShowInTaskbar="False"
+        ShowActivated="False"
+        WindowStartupLocation="Manual">
+
+  <Window.Styles>
+    <Style Selector="TextBlock.statLabel">
+      <Setter Property="Opacity" Value="0.65" />
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="Margin" Value="0,1" />
+    </Style>
+    <Style Selector="TextBlock.statValue">
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="HorizontalAlignment" Value="Right" />
+      <Setter Property="Margin" Value="0,1" />
+    </Style>
+  </Window.Styles>
+
+  <Window.ContextMenu>
+    <ContextMenu>
+      <MenuItem Header="Input speed" ToggleType="Radio" GroupName="SpeedKind" IsChecked="{Binding ShowInput, Mode=TwoWay}" />
+      <MenuItem Header="Output speed" ToggleType="Radio" GroupName="SpeedKind" IsChecked="{Binding ShowOutput, Mode=TwoWay}" />
+      <Separator />
+      <MenuItem Header="Reset stats" Command="{Binding ResetStatsCommand}" />
+      <MenuItem Header="Close" Click="OnCloseClick" />
+    </ContextMenu>
+  </Window.ContextMenu>
+
+  <Border x:Name="Frame" BorderThickness="1" Padding="10,8">
+    <DockPanel>
+      <TextBlock DockPanel.Dock="Top" Classes="statLabel" Margin="0,0,0,4" Text="{Binding Title}" />
+      <Grid DockPanel.Dock="Top" ColumnDefinitions="Auto,*,20,Auto,*" RowDefinitions="Auto,Auto,Auto">
+        <TextBlock Classes="statLabel" Text="Now" />
+        <TextBlock Grid.Column="1" Classes="statValue" Text="{Binding Now}" />
+        <TextBlock Grid.Column="3" Classes="statLabel" Text="Max" />
+        <TextBlock Grid.Column="4" Classes="statValue" Text="{Binding Max}" />
+        <TextBlock Grid.Row="1" Classes="statLabel" Text="Min" />
+        <TextBlock Grid.Row="1" Grid.Column="1" Classes="statValue" Text="{Binding Min}" />
+        <TextBlock Grid.Row="1" Grid.Column="3" Classes="statLabel" Text="Avg" />
+        <TextBlock Grid.Row="1" Grid.Column="4" Classes="statValue" Text="{Binding Average}" />
+        <TextBlock Grid.Row="2" Classes="statLabel" Text="Median" />
+        <TextBlock Grid.Row="2" Grid.Column="1" Classes="statValue" Text="{Binding Median}" />
+        <TextBlock Grid.Row="2" Grid.Column="3" Classes="statLabel" Text="95th %" Margin="0,1,12,1" />
+        <TextBlock Grid.Row="2" Grid.Column="4" Classes="statValue" Text="{Binding Percentile95}" />
+      </Grid>
+      <views:SpeedGraph x:Name="Graph" Margin="0,8,0,0" />
+    </DockPanel>
+  </Border>
+</Window>

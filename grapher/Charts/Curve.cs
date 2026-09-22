@@ -76,6 +76,33 @@ public sealed class Curve
         return Math.Clamp(index, 0, Count - 1);
     }
 
+    public double InputSpeedFor(double outputSpeed)
+    {
+        if (!double.IsFinite(outputSpeed) || outputSpeed <= 0 || Count == 0)
+        {
+            return 0;
+        }
+
+        int upper = Array.BinarySearch(runningMaxVelocity, outputSpeed);
+
+        if (upper >= 0)
+        {
+            return Input[upper];
+        }
+
+        upper = ~upper;
+
+        if (upper == 0 || upper == Count)
+        {
+            int edge = Math.Min(upper, Count - 1);
+            return runningMaxVelocity[edge] > 0 ? outputSpeed * Input[edge] / runningMaxVelocity[edge] : Input[edge];
+        }
+
+        int lower = upper - 1;
+        double fraction = (outputSpeed - runningMaxVelocity[lower]) / (runningMaxVelocity[upper] - runningMaxVelocity[lower]);
+        return Input[lower] + fraction * (Input[upper] - Input[lower]);
+    }
+
     public Dot DotAt(int index, double measuredVelocity) =>
         new(Input[index], Sensitivity[index], measuredVelocity, Gain[index]);
 

@@ -72,6 +72,27 @@ public sealed class CurveSet
         }
     }
 
+    public double InputSpeed(double x, double y, double timeMs)
+    {
+        switch (Layout)
+        {
+            case ChartLayout.ByComponent:
+            {
+                double inX = First.InputSpeedFor(Math.Abs(x) / timeMs);
+                double inY = (Second ?? First).InputSpeedFor(Math.Abs(y) / timeMs);
+                return Math.Sqrt(inX * inX + inY * inY);
+            }
+            case ChartLayout.Directional when Directions is not null:
+            {
+                double angle = Math.Atan2(Math.Abs(y), Math.Abs(x));
+                int division = Math.Clamp(CurveSampler.NearestAngleDivision(angle), 0, Directions.Count - 1);
+                return Directions[division].InputSpeedFor(Math.Sqrt(x * x + y * y) / timeMs);
+            }
+            default:
+                return First.InputSpeedFor(Math.Sqrt(x * x + y * y) / timeMs);
+        }
+    }
+
     private ValueRange Range(bool second, Func<Curve, (double Min, double Max)> extent)
     {
         if (Layout == ChartLayout.ByComponent)

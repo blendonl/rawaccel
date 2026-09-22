@@ -39,6 +39,10 @@ namespace grapher.Models.Calculations
 
         public Dictionary<double, (double, double, double)> OutVelocityToPoints { get; }
 
+        private double[] SortedInVelocities { get; set; }
+
+        private double[] SortedOutVelocities { get; set; }
+
         #endregion Properties
 
         #region Methods
@@ -50,6 +54,50 @@ namespace grapher.Models.Calculations
             GainPoints.Clear();
             OutVelocityToPoints.Clear();
             Array.Clear(LogToIndex, 0, LogToIndex.Length);
+            SortedInVelocities = null;
+            SortedOutVelocities = null;
+        }
+
+        public double EstimateInVelocity(double outVelocityValue)
+        {
+            if (!(outVelocityValue > 0) || VelocityPoints.Count == 0)
+            {
+                return 0;
+            }
+
+            if (SortedInVelocities == null)
+            {
+                SortedInVelocities = VelocityPoints.Keys.ToArray();
+                SortedOutVelocities = VelocityPoints.Values.ToArray();
+            }
+
+            var upper = Array.BinarySearch(SortedOutVelocities, outVelocityValue);
+
+            if (upper >= 0)
+            {
+                return SortedInVelocities[upper];
+            }
+
+            upper = ~upper;
+
+            if (upper == 0 || upper == SortedOutVelocities.Length)
+            {
+                var edge = Math.Min(upper, SortedOutVelocities.Length - 1);
+                return SortedOutVelocities[edge] > 0 ?
+                    outVelocityValue * SortedInVelocities[edge] / SortedOutVelocities[edge] :
+                    SortedInVelocities[edge];
+            }
+
+            var lower = upper - 1;
+            var outSpan = SortedOutVelocities[upper] - SortedOutVelocities[lower];
+
+            if (!(outSpan > 0))
+            {
+                return SortedInVelocities[lower];
+            }
+
+            var fraction = (outVelocityValue - SortedOutVelocities[lower]) / outSpan;
+            return SortedInVelocities[lower] + fraction * (SortedInVelocities[upper] - SortedInVelocities[lower]);
         }
 
         public (double, double, double) FindPointValuesFromOut(double outVelocityValue)

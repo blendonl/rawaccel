@@ -64,6 +64,10 @@ namespace grapher
 
             menuStrip1.Items.AddRange(new ToolStripItem[] { themeMenuItem, HelpMenuItem });
 
+            var speedOverlayMenuItem = new ToolStripMenuItem("Show Speed &Overlay");
+            speedOverlayMenuItem.CheckOnClick = true;
+            graphsToolStripMenuItem.DropDownItems.Add(speedOverlayMenuItem);
+
             Theme.Apply(this, menuStrip1);
 
             AccelGUI = AccelGUIFactory.Construct(
@@ -91,6 +95,7 @@ namespace grapher
                 DeviceMenuItem,
                 ScaleMenuItem,
                 themeMenuItem,
+                speedOverlayMenuItem,
                 DPITextBox,
                 PollRateTextBox,
                 DirectionalityPanel,

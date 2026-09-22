@@ -42,7 +42,7 @@ namespace grapher.Models.Calculations.Data
 
         private AccelCalculator Calculator { get; }
 
-        public void CalculateDots(double x, double y, double timeInMs)
+        public double CalculateDots(double x, double y, double timeInMs)
         {
             var outVelocity = AccelCalculator.Velocity(x, y, timeInMs);
             var outAngle = Math.Atan2(Math.Abs(y),Math.Abs(x));
@@ -58,6 +58,8 @@ namespace grapher.Models.Calculations.Data
             YPoints.Sensitivity.Set(inVelocity, yPoints.Item1);
             YPoints.Velocity.Set(inVelocity, yPoints.Item2);
             YPoints.Gain.Set(inVelocity, yPoints.Item3);
+
+            return data.EstimateInVelocity(outVelocity);
         }
 
         public void Clear()

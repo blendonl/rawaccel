@@ -1,4 +1,5 @@
 ﻿using grapher.Common;
+using grapher.Models.Calculations;
 using grapher.Models.Serialized;
 using System;
 using System.Collections.Generic;
@@ -692,6 +693,7 @@ namespace grapher.Models.Mouse
             AccelCharts = accelCharts;
             SettingsManager = setMngr;
             MouseData = new MouseData();
+            SpeedRecorder = new SpeedRecorder();
 
             LastMoveDisplayFormat = Constants.MouseMoveDefaultFormat;
             LastMoveNormalized = false;
@@ -712,6 +714,8 @@ namespace grapher.Models.Mouse
         #endregion Constructors
 
         #region Properties
+
+        public SpeedRecorder SpeedRecorder { get; }
 
         private Form ContainingForm { get; }
 
@@ -775,7 +779,8 @@ namespace grapher.Models.Mouse
             {
                 var time = Stopwatch.Elapsed.TotalMilliseconds;
                 Stopwatch.Restart();
-                time = time > 100 ? 100 : time;
+                var movedFromRest = time > Constants.MouseMoveMaxTimeInMs;
+                time = movedFromRest ? Constants.MouseMoveMaxTimeInMs : time;
                 time = time > (PollTime * 0.8) ? time : (PollTime * 0.8);
 
                 double x = rawInput.Data.Mouse.LastX;
@@ -800,7 +805,8 @@ namespace grapher.Models.Mouse
                 }
 
                 MouseData.Set(rawInput.Data.Mouse.LastX, rawInput.Data.Mouse.LastY);
-                AccelCharts.MakeDots(x, y, time);
+                var inputSpeed = AccelCharts.MakeDots(x, y, time);
+                SpeedRecorder.Record(inputSpeed, AccelCalculator.Velocity(x, y, time), time, movedFromRest);
             }
 
         }

@@ -13,15 +13,20 @@ jobs:
       version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       - uses: microsoft/setup-msbuild@v3
         with:
           vs-version: "[18.0,)"
 
-      - name: Read the version
+      - name: Pick the version
         id: version
-        shell: pwsh
-        run: '"version=$(./tools/version.ps1)" >> $env:GITHUB_OUTPUT'
+        shell: bash
+        run: |
+          version=$(./tools/next-version.sh)
+          ./tools/set-version.sh "$version"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
 
       - name: Build
         run: >-
@@ -94,12 +99,26 @@ jobs:
           name: rawaccel-win64
           path: dist
 
+      - name: Commit the version
+        id: commit
+        if: steps.tag.outputs.untagged == 'true'
+        run: |
+          ./tools/set-version.sh "$VERSION"
+          if ! git diff --quiet; then
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git commit -am "chore(release): $VERSION"
+            git push origin HEAD:master
+          fi
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
       - name: Publish the release
         if: steps.tag.outputs.untagged == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
+          TARGET: ${{ steps.commit.outputs.sha }}
         run: |
           gh release create "v$VERSION" "dist/rawaccel-$VERSION-win64.zip" \
-            --target "$GITHUB_SHA" \
+            --target "$TARGET" \
             --title "Raw Accel $VERSION" \
             --generate-notes

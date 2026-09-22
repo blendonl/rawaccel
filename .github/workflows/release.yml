@@ -12,9 +12,9 @@ jobs:
     outputs:
       version: ${{ steps.version.outputs.version }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: microsoft/setup-msbuild@v2
+      - uses: microsoft/setup-msbuild@v3
         with:
           vs-version: "[18.0,)"
 
@@ -61,7 +61,7 @@ jobs:
           if (Test-Path $shortcut) { throw 'the Start menu shortcut is still there' }
           if (Test-Path $entry) { throw 'the Apps entry is still there' }
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: rawaccel-win64
           path: dist/*.zip
@@ -76,7 +76,7 @@ jobs:
     env:
       VERSION: ${{ needs.build.outputs.version }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Look for an untagged version
         id: tag
@@ -88,7 +88,7 @@ jobs:
             *) exit "$status" ;;
           esac
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         if: steps.tag.outputs.untagged == 'true'
         with:
           name: rawaccel-win64

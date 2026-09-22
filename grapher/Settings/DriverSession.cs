@@ -15,14 +15,17 @@ public sealed record ApplyResult(string? Errors, string? Warning, Task Activatio
     public static ApplyResult Rejected(string errors) => new(errors, null, Task.CompletedTask);
 }
 
-public sealed record DeviceOverride(string Id, string Name, bool Override, DeviceConfig Config);
+public sealed record DeviceOverride(string Id, string Name, bool Override, string Profile, DeviceConfig Config);
 
 public sealed class DriverSession
 {
+    public const int MaxProfileNameLength = 255;
+
     private readonly IDriverAccess driver;
     private readonly AppPaths paths;
     private IReadOnlyList<MultiHandleDevice> systemDevices = Array.Empty<MultiHandleDevice>();
     private Dictionary<IntPtr, bool> trackedDevices = new();
+    private string selectedName = string.Empty;
 
     public DriverSession(IDriverAccess driver, AppPaths paths)
     {
@@ -38,9 +41,19 @@ public sealed class DriverSession
 
     public DriverConfig UserConfig { get; private set; } = null!;
 
-    public Profile ActiveProfile => ActiveConfig.profiles[0];
+    public Profile ActiveProfile => ActiveConfig.profiles[IndexOf(ActiveConfig, selectedName)];
 
-    public Profile UserProfile => UserConfig.profiles[0];
+    public Profile UserProfile => UserConfig.profiles[IndexOf(UserConfig, selectedName)];
+
+    public ProfileDeviceConfig ActiveDeviceConfig => ProfileDevices.Get(ActiveConfig, ActiveProfile.name);
+
+    public ProfileDeviceConfig UserDeviceConfig => ProfileDevices.Get(UserConfig, UserProfile.name);
+
+    public IReadOnlyList<string> ProfileNames => UserConfig.profiles.Select(p => p.name).ToList();
+
+    public string DefaultProfileName => UserConfig.profiles[0].name;
+
+    public bool IsDefaultSelected => IndexOf(UserConfig, selectedName) == 0;
 
     public IReadOnlyList<MultiHandleDevice> SystemDevices => systemDevices;
 
@@ -60,16 +73,19 @@ public sealed class DriverSession
 
                 if (errors is null)
                 {
+                    var conflicts = NormalizeLoaded(config);
                     UserConfig = config;
 
                     if (applyOnStartup)
                     {
-                        return Commit(config).Warning;
+                        ProfileDevices.Materialize(config);
+                        return JoinMessages(ConflictNotice(conflicts, applied: true), Commit(config).Warning);
                     }
 
                     ActiveConfig = driver.ReadActive();
+                    NormalizeLoaded(ActiveConfig);
                     UpdateTrackedDevices();
-                    return null;
+                    return ConflictNotice(conflicts, applied: false);
                 }
 
                 warning = $"settings.json has errors, so the driver's current settings were loaded instead. The old file was saved as settings.json.bak.\n\n{errors.Trim()}";
@@ -83,9 +99,10 @@ public sealed class DriverSession
         }
 
         ActiveConfig = driver.ReadActive();
+        var driverConflicts = NormalizeLoaded(ActiveConfig);
         UserConfig = ActiveConfig;
         UpdateTrackedDevices();
-        return JoinMessages(warning, TryWriteSettingsFile(ActiveConfig));
+        return JoinMessages(JoinMessages(warning, ConflictNotice(driverConflicts, applied: false)), TryWriteSettingsFile(ActiveConfig));
     }
 
     public static string? Validate(Profile profile)
@@ -94,66 +111,171 @@ public sealed class DriverSession
         return errors.Empty() ? null : CleanMessages(errors.ToString());
     }
 
-    public ApplyResult Apply(Profile profile)
+    public string? ValidateProfileName(string name, string? currentName = null)
     {
-        var previous = UserConfig.profiles[0];
-        UserConfig.SetProfileAt(0, ProfileCopy.Clone(profile));
+        var trimmed = name.Trim();
 
-        var errors = UserConfig.Errors();
-
-        if (errors is not null)
+        if (trimmed.Length == 0)
         {
-            UserConfig.SetProfileAt(0, previous);
-            return ApplyResult.Rejected(CleanMessages(errors));
+            return "Enter a name.";
         }
 
-        return Commit(UserConfig);
+        if (trimmed.Length > MaxProfileNameLength)
+        {
+            return $"Use at most {MaxProfileNameLength} characters.";
+        }
+
+        bool taken = UserConfig.profiles.Any(p =>
+            p.name != currentName && string.Equals(p.name, trimmed, StringComparison.OrdinalIgnoreCase));
+
+        return taken ? "Another profile already has this name." : null;
     }
 
-    public ApplyResult ApplyDevices(DeviceConfig defaults, IEnumerable<DeviceOverride> overrides, Profile profile)
+    public IReadOnlyList<string> DevicesAssignedTo(string profileName) =>
+        UserConfig.devices
+            .Where(d => !d.config.disable && d.profile == profileName)
+            .Select(d => string.IsNullOrWhiteSpace(d.name) ? d.id : d.name)
+            .ToList();
+
+    public void SelectProfile(string name)
     {
-        var previousDefaults = UserConfig.defaultDeviceConfig;
-        var previousDevices = UserConfig.devices.Select(CloneDevice).ToList();
+        selectedName = name;
+        UpdateTrackedDevices();
+        ActiveChanged?.Invoke(this, EventArgs.Empty);
+    }
 
-        UserConfig.defaultDeviceConfig = defaults;
+    public ApplyResult Apply(Profile profile) => Apply(profile, UserDeviceConfig);
 
-        foreach (var item in overrides)
+    public ApplyResult Apply(Profile profile, ProfileDeviceConfig deviceConfig)
+    {
+        var name = UserProfile.name;
+        return Change(config => ReplaceProfile(config, name, profile, deviceConfig));
+    }
+
+    public ApplyResult ApplyDevices(DeviceConfig defaults, IEnumerable<DeviceOverride> overrides, Profile profile, ProfileDeviceConfig deviceConfig)
+    {
+        var name = UserProfile.name;
+
+        return Change(config =>
         {
-            var existing = UserConfig.devices.Find(d => d.id == item.Id);
+            config.defaultDeviceConfig = defaults;
 
-            if (item.Override)
+            foreach (var item in overrides)
             {
-                if (existing is null)
+                var existing = config.devices.Find(d => d.id == item.Id);
+
+                if (item.Override)
                 {
-                    UserConfig.devices.Add(new DeviceSettings
+                    if (existing is null)
                     {
-                        name = item.Name,
-                        profile = UserProfile.name,
-                        id = item.Id,
-                        config = item.Config,
-                    });
+                        config.devices.Add(new DeviceSettings
+                        {
+                            name = item.Name,
+                            profile = item.Profile,
+                            id = item.Id,
+                            config = item.Config,
+                        });
+                    }
+                    else
+                    {
+                        existing.profile = item.Profile;
+                        existing.config = item.Config;
+                    }
                 }
-                else
+                else if (existing is not null)
                 {
-                    existing.config = item.Config;
+                    config.devices.Remove(existing);
                 }
             }
-            else if (existing is not null)
-            {
-                UserConfig.devices.Remove(existing);
-            }
-        }
 
-        var result = Apply(profile);
+            ReplaceProfile(config, name, profile, deviceConfig);
+        });
+    }
 
-        if (!result.Succeeded)
+    public ApplyResult AddProfile(string name, Profile source, ProfileDeviceConfig deviceConfig)
+    {
+        var trimmed = name.Trim();
+        var error = ValidateProfileName(trimmed);
+
+        if (error is not null)
         {
-            UserConfig.defaultDeviceConfig = previousDefaults;
-            UserConfig.devices.Clear();
-            UserConfig.devices.AddRange(previousDevices);
+            return ApplyResult.Rejected(error);
         }
 
-        return result;
+        return Change(config =>
+        {
+            var profile = ProfileCopy.Clone(source);
+            profile.name = trimmed;
+            config.profiles.Add(profile);
+            config.accels.Add(new ManagedAccel(profile));
+            config.profileDeviceConfigs[trimmed] = deviceConfig;
+        }, select: trimmed);
+    }
+
+    public ApplyResult RenameProfile(string newName)
+    {
+        var oldName = UserProfile.name;
+        var trimmed = newName.Trim();
+        var error = ValidateProfileName(trimmed, oldName);
+
+        if (error is not null)
+        {
+            return ApplyResult.Rejected(error);
+        }
+
+        return Change(config =>
+        {
+            int index = IndexOf(config, oldName);
+            var profile = ProfileCopy.Clone(config.profiles[index]);
+            profile.name = trimmed;
+            config.SetProfileAt(index, profile);
+            config.profileDeviceConfigs[trimmed] = ProfileDevices.Get(config, oldName);
+            config.profileDeviceConfigs.Remove(oldName);
+
+            foreach (var device in config.devices.Where(d => d.profile == oldName))
+            {
+                device.profile = trimmed;
+            }
+        }, select: trimmed);
+    }
+
+    public ApplyResult DeleteProfile()
+    {
+        if (UserConfig.profiles.Count < 2)
+        {
+            return ApplyResult.Rejected("The only profile can't be deleted.");
+        }
+
+        var name = UserProfile.name;
+
+        return Change(config =>
+        {
+            int index = IndexOf(config, name);
+            config.profiles.RemoveAt(index);
+            config.accels.RemoveAt(index);
+            config.profileDeviceConfigs.Remove(name);
+
+            foreach (var device in config.devices.Where(d => d.profile == name))
+            {
+                device.profile = string.Empty;
+            }
+        }, select: string.Empty);
+    }
+
+    public ApplyResult MakeDefaultProfile()
+    {
+        var name = UserProfile.name;
+
+        return Change(config =>
+        {
+            int index = IndexOf(config, name);
+            var profile = config.profiles[index];
+            var accel = config.accels[index];
+            config.profiles.RemoveAt(index);
+            config.accels.RemoveAt(index);
+            config.profiles.Insert(0, profile);
+            config.accels.Insert(0, accel);
+        }, select: name);
     }
 
     public Task Reset()
@@ -174,6 +296,33 @@ public sealed class DriverSession
 
     public DeviceSettings? FindDeviceSettings(string id) => UserConfig.devices.Find(d => d.id == id);
 
+    private ApplyResult Change(Action<DriverConfig> edit, string? select = null)
+    {
+        var (config, copyErrors) = DriverConfig.Convert(UserConfig.ToJSON());
+
+        if (copyErrors is not null)
+        {
+            return ApplyResult.Rejected(CleanMessages(copyErrors));
+        }
+
+        edit(config);
+        ProfileDevices.Materialize(config);
+
+        var errors = config.Errors();
+
+        if (errors is not null)
+        {
+            return ApplyResult.Rejected(CleanMessages(errors));
+        }
+
+        if (select is not null)
+        {
+            selectedName = select;
+        }
+
+        return Commit(config);
+    }
+
     private ApplyResult Commit(DriverConfig config)
     {
         ActiveConfig = config;
@@ -189,40 +338,52 @@ public sealed class DriverSession
     private void UpdateTrackedDevices()
     {
         var tracked = new Dictionary<IntPtr, bool>();
-        var profileNames = new HashSet<string>(ActiveConfig.profiles.Select(p => p.name));
-        var activeName = ActiveProfile.name;
+        var selected = ActiveProfile.name;
 
         foreach (var device in systemDevices)
         {
             var settings = ActiveConfig.devices.Find(d => d.id == device.id);
-            bool include;
-            bool normalized;
+            var config = settings?.config ?? ActiveConfig.defaultDeviceConfig;
 
-            if (settings is null)
+            if (config.disable || ProfileDevices.EffectiveProfile(ActiveConfig, settings) != selected)
             {
-                include = !ActiveConfig.defaultDeviceConfig.disable;
-                normalized = ActiveConfig.defaultDeviceConfig.dpi > 0;
-            }
-            else
-            {
-                include = !settings.config.disable &&
-                    (string.IsNullOrEmpty(settings.profile) ||
-                        !profileNames.Contains(settings.profile) ||
-                        settings.profile == activeName);
-                normalized = settings.config.dpi > 0;
+                continue;
             }
 
-            if (include)
+            foreach (var handle in device.handles)
             {
-                foreach (var handle in device.handles)
-                {
-                    tracked[handle] = normalized;
-                }
+                tracked[handle] = config.dpi > 0;
             }
         }
 
         trackedDevices = tracked;
     }
+
+    private static void ReplaceProfile(DriverConfig config, string name, Profile profile, ProfileDeviceConfig deviceConfig)
+    {
+        var edited = ProfileCopy.Clone(profile);
+        edited.name = name;
+        config.SetProfileAt(IndexOf(config, name), edited);
+        config.profileDeviceConfigs[name] = deviceConfig;
+    }
+
+    private static IReadOnlyList<string> NormalizeLoaded(DriverConfig config)
+    {
+        ProfileDevices.ReleaseDefaultAssignments(config);
+        ProfileDevices.Complete(config);
+        return ProfileDevices.DescribeConflicts(config);
+    }
+
+    private static string? ConflictNotice(IReadOnlyList<string> conflicts, bool applied) =>
+        conflicts.Count == 0
+            ? null
+            : (applied
+                ? "DPI and polling rate are now set per profile. These devices had their own values and now use their profile's:\n"
+                : "DPI and polling rate are now set per profile. These devices had their own values and will use their profile's the next time settings are applied:\n") +
+                string.Join("\n", conflicts);
+
+    private static int IndexOf(DriverConfig config, string name) =>
+        Math.Max(0, config.profiles.FindIndex(p => p.name == name));
 
     private string? TryWriteSettingsFile(DriverConfig config)
     {
@@ -247,14 +408,6 @@ public sealed class DriverSession
         {
         }
     }
-
-    private static DeviceSettings CloneDevice(DeviceSettings source) => new()
-    {
-        name = source.name,
-        profile = source.profile,
-        id = source.id,
-        config = source.config,
-    };
 
     private static string? JoinMessages(string? first, string? second) =>
         first is null ? second : second is null ? first : $"{first}\n\n{second}";

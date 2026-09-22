@@ -124,6 +124,13 @@ See "[Horizontal and Vertical](#horizontal-and-vertical)" in the philosophy sect
 ### Previewing Changes
 Edits in the GUI are drawn on the charts as you type, with the currently applied curve shown dashed behind them. Nothing is sent to the driver until you press Apply, and Revert discards edits that haven't been applied. Settings that the driver would reject are explained below the options before you apply. Hover over any setting for a short explanation of what it does.
 
+### Profiles
+A profile is a complete set of settings: the curve and everything else in the options panel, plus a mouse DPI and polling rate. Choose the profile to view and edit from the list at the top of the options panel. "Manage…" creates a new profile, duplicates, renames or deletes the selected one, or sets it as the default. Every mouse uses the default profile unless it is assigned another one in "[Settings >> Devices](#settings--devices)", so each mouse can have its own curve.
+
+A profile's Mouse DPI and Polling rate apply to every mouse that uses it (see "[DPI Normalization](#dpi-normalization)"). If you switch your mouse between DPI or polling rate settings, make a profile for each one, for example "800 DPI" and "1600 DPI", and assign the matching profile to the mouse or set it as the default when you switch.
+
+Switching and managing profiles is disabled while you have unapplied edits; apply or revert them first. Profiles are saved in settings.json, with each profile's DPI and polling rate under `profileDeviceConfigs`. Older settings files that set DPI or polling rate per device are converted when they are loaded: each profile takes the values of the devices that already use it, and the GUI lists any device whose own values will change.
+
 ### Last Mouse Move
 The Raw Accel GUI reads the output of the raw input stream, and thus the output of the Raw Accel Driver, and displays on the graphs red points corresponding to the last mouse movements. These calulations should be fast and your graph responsive, but it comes at the cost of higher CPU usage due to needing to refresh the graph often. This feature can be turned off with the "Last mouse move" checkbox above the charts or in the "View" menu.
 
@@ -136,13 +143,13 @@ See "[Coalescion](#coalescion)" in the philosophy section to understand what the
 ### Charts and Menu Options
 
 #### Chart DPI and Poll rate
-These fields above the charts do not scale your acceleration curve in any way. Rather, DPI scales the set of points used to graph your curve, and shows you a window of input speed relevant for your chosen DPI. The poll rate is used as a safeguard for the Last Mouse Move points and therefore should be set for accuracy in that measurement.
+These fields above the charts do not scale your acceleration curve in any way. Rather, DPI scales the set of points used to graph your curve, and shows you a window of input speed relevant for your chosen DPI. The poll rate is used as a safeguard for the Last Mouse Move points and therefore should be set for accuracy in that measurement. When the profile you are editing sets a Mouse DPI or Polling rate, these fields follow it.
 
 #### Settings >> Devices
-This menu provides options for individually disabling devices, and normalizing device DPI (see next section). Here you will also find an option for setting polling rate, which signals the driver to forgo the standard automatic rate adjustment. Leave this at 0 unless you are experiencing cursor stutters that only occur with acceleration enabled.
+This menu provides options for individually disabling devices and choosing which profile each device uses. A device without its own settings uses the default profile. A device's DPI normalization (see next section) and polling rate come from its profile. Setting a profile's polling rate signals the driver to forgo the standard automatic rate adjustment for its devices. Leave this at 0 unless you are experiencing cursor stutters that only occur with acceleration enabled.
 
 #### DPI Normalization
-Setting the DPI option for a device to its actual DPI will scale its input so that the sensitivity and acceleration feels as if it were set to 1000 dpi. For example, with a sens multiplier of 0.8, mice with their DPI set in the device menu will have the equivalent sensitivity of an 800 DPI mouse with a sens multiplier of 1. Ignoring device-specific factors like weight, friction, and sensor position, normalization provides an easy method to synchronize settings across different setups.
+Setting a profile's Mouse DPI to your mouse's actual DPI will scale its input so that the sensitivity and acceleration feels as if it were set to 1000 dpi. For example, with a sens multiplier of 0.8, mice using a profile with their DPI set will have the equivalent sensitivity of an 800 DPI mouse with a sens multiplier of 1. Ignoring device-specific factors like weight, friction, and sensor position, normalization provides an easy method to synchronize settings across different setups.
 
 This is still an experimental setting, which perhaps will be more clearly presented in the future. For now, users should set their sensitivity multiplier to no greater than their DPI divided by 1000 to avoid pixel skipping on desktop (with 6/11 window sensitivity.)
 

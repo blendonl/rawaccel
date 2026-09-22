@@ -11,12 +11,16 @@ public sealed partial class DeviceMenuViewModel : ObservableObject
 {
     private readonly DriverSession session;
     private readonly DeviceConfig defaults;
+    private readonly IReadOnlyList<ProfileOption> profiles;
 
     public DeviceMenuViewModel(DriverSession session)
     {
         this.session = session;
         defaults = session.UserConfig.defaultDeviceConfig;
         defaultDisabled = defaults.disable;
+        profiles = new[] { new ProfileOption(string.Empty, $"Default ({session.DefaultProfileName})") }
+            .Concat(session.ProfileNames.Select(name => new ProfileOption(name, name)))
+            .ToList();
         Rebuild();
     }
 
@@ -43,7 +47,15 @@ public sealed partial class DeviceMenuViewModel : ObservableObject
         {
             var item = previous.TryGetValue(device.id, out var existing)
                 ? existing
-                : new DeviceItemViewModel(device.id, device.name, session.FindDeviceSettings(device.id)?.config, defaults, () => DefaultDisabled);
+                : new DeviceItemViewModel(
+                    device.id,
+                    device.name,
+                    session.FindDeviceSettings(device.id),
+                    defaults,
+                    () => DefaultDisabled,
+                    profiles,
+                    session.DefaultProfileName,
+                    name => ProfileDevices.Get(session.UserConfig, name));
             Devices.Add(item);
         }
 
@@ -70,19 +82,31 @@ public sealed partial class DeviceMenuViewModel : ObservableObject
 
 public sealed partial class DeviceItemViewModel : ObservableObject
 {
-    private readonly DeviceConfig defaults;
     private readonly Func<bool> defaultDisabled;
+    private readonly string defaultProfileName;
+    private readonly Func<string, ProfileDeviceConfig> profileValues;
     private DeviceConfig config;
     private bool refreshing;
 
-    public DeviceItemViewModel(string id, string name, DeviceConfig? existing, DeviceConfig defaults, Func<bool> defaultDisabled)
+    public DeviceItemViewModel(
+        string id,
+        string name,
+        DeviceSettings? existing,
+        DeviceConfig defaults,
+        Func<bool> defaultDisabled,
+        IReadOnlyList<ProfileOption> profiles,
+        string defaultProfileName,
+        Func<string, ProfileDeviceConfig> profileValues)
     {
         Id = id;
         RawName = name;
-        this.defaults = defaults;
         this.defaultDisabled = defaultDisabled;
-        config = existing ?? defaults;
-        overrideDefaults = existing.HasValue;
+        this.defaultProfileName = defaultProfileName;
+        this.profileValues = profileValues;
+        Profiles = profiles;
+        config = existing?.config ?? defaults;
+        overrideDefaults = existing is not null;
+        selectedProfile = profiles.FirstOrDefault(p => p.Name.Length > 0 && p.Name == existing?.profile) ?? profiles[0];
         RefreshDefaults();
     }
 
@@ -94,30 +118,42 @@ public sealed partial class DeviceItemViewModel : ObservableObject
 
     public bool CanEdit => OverrideDefaults;
 
+    public IReadOnlyList<ProfileOption> Profiles { get; }
+
+    public string EffectiveProfileName =>
+        OverrideDefaults && SelectedProfile.Name.Length > 0 ? SelectedProfile.Name : defaultProfileName;
+
+    public string ListHint => Disable ? "Disabled" : $"Profile: {EffectiveProfileName}";
+
+    public string ProfileSummary
+    {
+        get
+        {
+            var values = profileValues(EffectiveProfileName);
+            return $"{ProfileDevices.Describe(values.dpi, values.pollingRate)}, from profile \"{EffectiveProfileName}\". Change them in the main window's Profile section.";
+        }
+    }
+
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(CanEdit))]
+    [NotifyPropertyChangedFor(nameof(CanEdit), nameof(EffectiveProfileName), nameof(ListHint), nameof(ProfileSummary))]
     private bool overrideDefaults;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ListHint))]
     private bool disable;
 
     [ObservableProperty]
-    private decimal? dpi;
-
-    [ObservableProperty]
-    private decimal? pollingRate;
+    [NotifyPropertyChangedFor(nameof(EffectiveProfileName), nameof(ListHint), nameof(ProfileSummary))]
+    private ProfileOption selectedProfile;
 
     public void RefreshDefaults()
     {
         refreshing = true;
-        var shown = OverrideDefaults ? config : defaults;
         Disable = OverrideDefaults ? config.disable : defaultDisabled();
-        Dpi = shown.dpi;
-        PollingRate = shown.pollingRate;
         refreshing = false;
     }
 
-    public DeviceOverride ToOverride() => new(Id, RawName, OverrideDefaults, config);
+    public DeviceOverride ToOverride() => new(Id, RawName, OverrideDefaults, SelectedProfile.Name, config);
 
     partial void OnOverrideDefaultsChanged(bool value)
     {
@@ -134,22 +170,6 @@ public sealed partial class DeviceItemViewModel : ObservableObject
         if (!refreshing && OverrideDefaults)
         {
             config.disable = value;
-        }
-    }
-
-    partial void OnDpiChanged(decimal? value)
-    {
-        if (!refreshing && OverrideDefaults)
-        {
-            config.dpi = (int)(value ?? 0);
-        }
-    }
-
-    partial void OnPollingRateChanged(decimal? value)
-    {
-        if (!refreshing && OverrideDefaults)
-        {
-            config.pollingRate = (int)(value ?? 0);
         }
     }
 

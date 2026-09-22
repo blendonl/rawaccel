@@ -35,6 +35,7 @@ public partial class MainWindow : Window
         DataContext = viewModel;
         viewModel.DeviceMenuRequested += async (_, _) => await ShowDeviceMenu();
         viewModel.AboutRequested += async (_, _) => await new AboutWindow { DataContext = viewModel }.ShowDialog(this);
+        viewModel.ProfileDialogRequested += async (_, request) => await ShowProfileDialog(request);
         viewModel.PropertyChanged += OnViewModelPropertyChanged;
         BuildThemeMenu();
         RestorePlacement(viewModel.Gui.Window);
@@ -238,6 +239,16 @@ public partial class MainWindow : Window
         finally
         {
             viewModel.DevicesChanged -= rebuild;
+        }
+    }
+
+    private async System.Threading.Tasks.Task ShowProfileDialog(ProfileDialogRequest request)
+    {
+        var dialog = new ProfileDialogWindow { DataContext = request.Dialog };
+
+        if (await dialog.ShowDialog<bool>(this))
+        {
+            await request.Confirm(request.Dialog.Name);
         }
     }
 

@@ -121,6 +121,7 @@
       <MenuItem Header="_View">
         <MenuItem Header="Show velocity and gain" ToggleType="CheckBox" IsChecked="{Binding ShowVelocityAndGain}" />
         <MenuItem Header="Show last mouse move" ToggleType="CheckBox" IsChecked="{Binding ShowLastMouseMove}" />
+        <MenuItem Header="Show speed overlay" ToggleType="CheckBox" IsChecked="{Binding ShowSpeedOverlay}" />
         <Separator />
         <MenuItem x:Name="ThemeMenu" Header="_Theme" />
       </MenuItem>

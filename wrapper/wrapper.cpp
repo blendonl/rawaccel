@@ -331,6 +331,15 @@ public ref struct DeviceSettings
         DeviceSettings(default_device_settings) {}
 };
 
+[JsonObject(ItemRequired = Required::Always)]
+public value struct ProfileDeviceConfig {
+    [JsonProperty("DPI (normalizes input speed unit: counts/ms -> in/s)")]
+    int dpi;
+
+    [JsonProperty("Polling rate Hz (keep at 0 for automatic adjustment)")]
+    int pollingRate;
+};
+
 
 public ref class ProfileErrors
 {
@@ -662,6 +671,9 @@ public:
 
     List<Profile^>^ profiles;
 
+    [JsonProperty(Required = Required::Default)]
+    Dictionary<String^, ProfileDeviceConfig>^ profileDeviceConfigs = gcnew Dictionary<String^, ProfileDeviceConfig>();
+
     [NonSerialized]
     List<ManagedAccel^>^ accels;
 
@@ -738,6 +750,16 @@ public:
         ProfileErrors^ profErrors = gcnew ProfileErrors(profiles);
         if (!profErrors->Empty()) {
             sb->Append(profErrors->ToString());
+        }
+
+        for each (auto entry in profileDeviceConfigs) {
+            if (entry.Value.dpi < 0) {
+                sb->AppendFormat("profile {0}: dpi can not be negative\n", entry.Key);
+            }
+
+            if (entry.Value.pollingRate < 0) {
+                sb->AppendFormat("profile {0}: polling rate can not be negative\n", entry.Key);
+            }
         }
 
         DeviceSettings^ defaultDev = gcnew DeviceSettings();
@@ -824,6 +846,10 @@ public:
         jss->DefaultValueHandling = DefaultValueHandling::Populate;
         auto cfg = JsonConvert::DeserializeObject<DriverConfig^>(json, jss);
         if (cfg == nullptr) throw gcnew JsonException("invalid JSON");
+
+        if (cfg->profileDeviceConfigs == nullptr) {
+            cfg->profileDeviceConfigs = gcnew Dictionary<String^, ProfileDeviceConfig>();
+        }
 
         auto message = cfg->Errors();
         if (message != nullptr) {

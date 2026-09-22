@@ -30,8 +30,8 @@
 
   <Window.ContextMenu>
     <ContextMenu>
-      <MenuItem Header="Input speed" ToggleType="Radio" GroupName="SpeedKind" IsChecked="{Binding ShowInput}" />
-      <MenuItem Header="Output speed" ToggleType="Radio" GroupName="SpeedKind" IsChecked="{Binding ShowOutput}" />
+      <MenuItem Header="Input speed" ToggleType="Radio" GroupName="SpeedKind" IsChecked="{Binding ShowInput, Mode=TwoWay}" />
+      <MenuItem Header="Output speed" ToggleType="Radio" GroupName="SpeedKind" IsChecked="{Binding ShowOutput, Mode=TwoWay}" />
       <Separator />
       <MenuItem Header="Reset stats" Command="{Binding ResetStatsCommand}" />
       <MenuItem Header="Close" Click="OnCloseClick" />

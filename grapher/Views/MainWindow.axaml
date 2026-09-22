@@ -116,12 +116,12 @@
     <Menu DockPanel.Dock="Top">
       <MenuItem Header="_Settings">
         <MenuItem Header="_Devices…" Command="{Binding OpenDeviceMenuCommand}" />
-        <MenuItem Header="Apply settings.json on startup" ToggleType="CheckBox" IsChecked="{Binding AutoApplyOnStartup}" />
+        <MenuItem Header="Apply settings.json on startup" ToggleType="CheckBox" IsChecked="{Binding AutoApplyOnStartup, Mode=TwoWay}" />
       </MenuItem>
       <MenuItem Header="_View">
-        <MenuItem Header="Show velocity and gain" ToggleType="CheckBox" IsChecked="{Binding ShowVelocityAndGain}" />
-        <MenuItem Header="Show last mouse move" ToggleType="CheckBox" IsChecked="{Binding ShowLastMouseMove}" />
-        <MenuItem Header="Show speed overlay" ToggleType="CheckBox" IsChecked="{Binding ShowSpeedOverlay}" />
+        <MenuItem Header="Show velocity and gain" ToggleType="CheckBox" IsChecked="{Binding ShowVelocityAndGain, Mode=TwoWay}" />
+        <MenuItem Header="Show last mouse move" ToggleType="CheckBox" IsChecked="{Binding ShowLastMouseMove, Mode=TwoWay}" />
+        <MenuItem Header="Show speed overlay" ToggleType="CheckBox" IsChecked="{Binding ShowSpeedOverlay, Mode=TwoWay}" />
         <Separator />
         <MenuItem x:Name="ThemeMenu" Header="_Theme" />
       </MenuItem>

@@ -6,19 +6,22 @@
     <RuntimeIdentifier Condition="'$(Platform)' == 'ARM64'">win-arm64</RuntimeIdentifier>
     <RuntimeIdentifier Condition="'$(Platform)' != 'ARM64'">win-x64</RuntimeIdentifier>
     <SelfContained>false</SelfContained>
-    <RootNamespace>wrapper_tests</RootNamespace>
+    <RootNamespace>grapher_tests</RootNamespace>
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
-    <Nullable>disable</Nullable>
+    <Nullable>enable</Nullable>
+    <InvariantGlobalization>true</InvariantGlobalization>
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Avalonia.Headless" Version="12.1.2" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.10.1" />
     <PackageReference Include="MSTest.TestAdapter" Version="4.4.1" />
     <PackageReference Include="MSTest.TestFramework" Version="4.4.1" />
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\grapher\grapher.csproj" />
     <ProjectReference Include="..\wrapper\wrapper.vcxproj" />
   </ItemGroup>
 

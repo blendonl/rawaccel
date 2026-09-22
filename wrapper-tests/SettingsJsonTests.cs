@@ -1,4 +1,5 @@
 using System;
+using System.Text.RegularExpressions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace wrapper_tests
@@ -47,6 +48,48 @@ namespace wrapper_tests
             Assert.AreEqual(AccelMode.classic, loaded.argsY.mode);
             Assert.AreEqual(2.5, loaded.argsY.exponentClassic);
             Assert.IsFalse(loaded.inputSpeedArgs.combineMagnitudes);
+        }
+
+        [TestMethod]
+        public void ProfileDeviceConfigs_RoundTripThroughJson()
+        {
+            var original = DriverConfig.GetDefault();
+            original.profileDeviceConfigs["default"] = new ProfileDeviceConfig { dpi = 1600, pollingRate = 4000 };
+
+            var (config, errors) = DriverConfig.Convert(original.ToJSON());
+
+            Assert.IsNull(errors);
+            Assert.AreEqual(1600, config.profileDeviceConfigs["default"].dpi);
+            Assert.AreEqual(4000, config.profileDeviceConfigs["default"].pollingRate);
+        }
+
+        [TestMethod]
+        [DataRow("")]
+        [DataRow("\"profileDeviceConfigs\": null,")]
+        public void SettingsWithoutProfileDeviceConfigs_StillLoad(string replacement)
+        {
+            var original = DriverConfig.GetDefault().ToJSON();
+            var json = Regex.Replace(original, "\"profileDeviceConfigs\":\\s*\\{\\s*\\},", replacement);
+            Assert.AreNotEqual(original, json);
+
+            var (config, errors) = DriverConfig.Convert(json);
+
+            Assert.IsNull(errors);
+            Assert.IsNotNull(config.profileDeviceConfigs);
+            Assert.AreEqual(0, config.profileDeviceConfigs.Count);
+        }
+
+        [TestMethod]
+        public void NegativeProfileDeviceConfig_ReportsErrors()
+        {
+            var original = DriverConfig.GetDefault();
+            original.profileDeviceConfigs["default"] = new ProfileDeviceConfig { dpi = -1, pollingRate = -1 };
+
+            var (config, errors) = DriverConfig.Convert(original.ToJSON());
+
+            Assert.IsNull(config);
+            StringAssert.Contains(errors, "profile default: dpi can not be negative");
+            StringAssert.Contains(errors, "profile default: polling rate can not be negative");
         }
 
         [TestMethod]

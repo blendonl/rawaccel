@@ -166,6 +166,42 @@
             <Border Classes="card">
               <StackPanel>
                 <Grid ColumnDefinitions="*,88" Margin="0,0,0,6">
+                  <TextBlock Classes="section" Text="Profile" />
+                  <TextBlock Grid.Column="1" Classes="columnHeader" Text="Current" HorizontalAlignment="Right" VerticalAlignment="Bottom" />
+                </Grid>
+                <Grid ColumnDefinitions="*,Auto" Margin="0,4">
+                  <ComboBox HorizontalAlignment="Stretch" ItemsSource="{Binding Profiles}" SelectedItem="{Binding SelectedProfile}"
+                            IsEnabled="{Binding CanManageProfiles}"
+                            ToolTip.Tip="The profile you're viewing and editing. Each mouse uses one profile, chosen in Settings → Devices.">
+                    <ComboBox.ItemTemplate>
+                      <DataTemplate x:DataType="vm:ProfileOption">
+                        <TextBlock Text="{Binding Label}" TextTrimming="CharacterEllipsis" />
+                      </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                  </ComboBox>
+                  <Button Grid.Column="1" Margin="6,0,0,0" Content="Manage…" IsEnabled="{Binding CanManageProfiles}">
+                    <Button.Flyout>
+                      <MenuFlyout Placement="BottomEdgeAlignedRight">
+                        <MenuItem Header="_New…" Command="{Binding NewProfileCommand}" />
+                        <MenuItem Header="D_uplicate…" Command="{Binding DuplicateProfileCommand}" />
+                        <MenuItem Header="_Rename…" Command="{Binding RenameProfileCommand}" />
+                        <MenuItem Header="Set as _default" Command="{Binding MakeDefaultProfileCommand}" />
+                        <Separator />
+                        <MenuItem Header="De_lete…" Command="{Binding DeleteProfileCommand}" />
+                      </MenuFlyout>
+                    </Button.Flyout>
+                  </Button>
+                </Grid>
+                <TextBlock Classes="hint" Margin="0,2,0,4" Text="{Binding ProfileUsageText}" TextWrapping="Wrap" />
+                <TextBlock Classes="hint" Margin="0,0,0,4" TextWrapping="Wrap" IsVisible="{Binding HasUnappliedChanges}"
+                           Text="Apply or revert your changes to switch or manage profiles." />
+                <ItemsControl ItemsSource="{Binding MouseRows}" />
+              </StackPanel>
+            </Border>
+
+            <Border Classes="card">
+              <StackPanel>
+                <Grid ColumnDefinitions="*,88" Margin="0,0,0,6">
                   <TextBlock Classes="section" Text="Sensitivity" />
                   <TextBlock Grid.Column="1" Classes="columnHeader" Text="Current" HorizontalAlignment="Right" VerticalAlignment="Bottom" />
                 </Grid>

@@ -195,6 +195,119 @@ public class MainWindowRenderTests
         Flush();
         Capture(about, "about");
         about.Close();
+
+        var confirm = new ProfileDialogWindow
+        {
+            DataContext = ProfileDialogViewModel.ForConfirmation(
+                "Delete profile",
+                "Delete \"fast\"? Mice assigned to it will use the default profile, \"default\".",
+                "Delete"),
+        };
+        confirm.Show();
+        Flush();
+        Capture(confirm, "profile-delete-dialog");
+        confirm.Close();
+    });
+
+    [TestMethod]
+    public void ProfilesAreCreatedEditedAndSwitched() => Run("profiles", BuiltInSchemes.LightName, ActiveSynchronous(), (window, vm) =>
+    {
+        Assert.AreEqual(1, vm.Profiles.Count);
+        Assert.AreEqual("default (default)", vm.SelectedProfile!.Label);
+        Assert.IsFalse(vm.DeleteProfileCommand.CanExecute(null));
+        Assert.IsFalse(vm.MakeDefaultProfileCommand.CanExecute(null));
+
+        vm.NewProfileCommand.Execute(null);
+        Flush();
+        var dialog = window.OwnedWindows.OfType<ProfileDialogWindow>().Single();
+        var request = (ProfileDialogViewModel)dialog.DataContext!;
+        Assert.AreEqual("New profile", request.Name);
+        Capture(dialog, "profile-new-dialog");
+        request.Name = "DEFAULT";
+        Assert.IsFalse(request.CanConfirm);
+        request.Name = "fast";
+        dialog.Close(true);
+        Flush();
+
+        CollectionAssert.AreEqual(new[] { "default", "fast" }, vm.Profiles.Select(p => p.Name).ToList());
+        Assert.AreEqual("fast", vm.SelectedProfile!.Name);
+        Assert.AreEqual("fast", vm.Session.ActiveProfile.name);
+        StringAssert.Contains(vm.ProfileUsageText, "No mouse uses this profile yet");
+
+        vm.Dpi.Text = "1600";
+        vm.PollingRate.Text = "4000";
+        Flush();
+
+        Assert.IsTrue(vm.HasUnappliedChanges);
+        Assert.IsFalse(vm.CanManageProfiles);
+        Assert.AreEqual("1600", vm.ChartDpiText);
+        Assert.AreEqual("4000", vm.ChartPollRateText);
+        Capture(window, "profiles-unapplied");
+
+        vm.ApplyCommand.Execute(null);
+        Flush();
+
+        Assert.AreEqual(1600, vm.Session.ActiveDeviceConfig.dpi);
+        Assert.AreEqual(4000, vm.Session.ActiveDeviceConfig.pollingRate);
+        Assert.IsFalse(vm.HasUnappliedChanges);
+
+        vm.SelectedProfile = vm.Profiles.Single(p => p.Name == "default");
+        Flush();
+
+        Assert.AreEqual("default", vm.Session.UserProfile.name);
+        Assert.AreEqual("0", vm.Dpi.Text);
+        StringAssert.Contains(vm.ProfileUsageText, "every mouse");
+    });
+
+    [TestMethod]
+    public void DeviceMenuAssignsProfiles() => Run("device-profiles", BuiltInSchemes.LightName, ActiveSynchronous(), (window, vm) =>
+    {
+        vm.Session.AddProfile("fast", ActiveSynchronous(), new ProfileDeviceConfig { dpi = 1600 });
+        vm.Session.UpdateSystemDevices(new[]
+        {
+            TestDevices.Connected("mouse-a", "Mouse A", 1),
+            TestDevices.Connected("mouse-b", "Mouse B", 2),
+        });
+        Flush();
+
+        var menu = new DeviceMenuViewModel(vm.Session);
+        var mouse = menu.Devices.Single(d => d.Id == "mouse-a");
+        CollectionAssert.AreEqual(new[] { "Default (default)", "default", "fast" }, mouse.Profiles.Select(p => p.Label).ToList());
+        Assert.AreEqual("Profile: default", mouse.ListHint);
+
+        menu.Selected = mouse;
+        mouse.OverrideDefaults = true;
+        mouse.SelectedProfile = mouse.Profiles.Single(p => p.Name == "fast");
+
+        Assert.AreEqual("Profile: fast", mouse.ListHint);
+        StringAssert.StartsWith(mouse.ProfileSummary, "DPI 1600, polling rate auto");
+
+        var dialog = new DeviceMenuWindow { DataContext = menu };
+        dialog.Show();
+        Flush();
+        Capture(dialog, "device-menu-profiles");
+        dialog.Close();
+
+        var (defaults, overrides) = menu.Collect();
+        _ = vm.ApplyDevices(defaults, overrides);
+        Flush();
+
+        var saved = vm.Session.FindDeviceSettings("mouse-a")!;
+        Assert.AreEqual("fast", saved.profile);
+        Assert.AreEqual(1600, saved.config.dpi);
+        Assert.IsNull(vm.Session.FindDeviceSettings("mouse-b"));
+        CollectionAssert.AreEquivalent(new[] { (IntPtr)1 }, vm.Session.TrackedDevices.Keys.ToList());
+        StringAssert.Contains(vm.ProfileUsageText, "Mouse A");
+    });
+
+    [TestMethod]
+    public void InvalidDpiBlocksApply() => Run("invalid-dpi", BuiltInSchemes.LightName, ActiveSynchronous(), (window, vm) =>
+    {
+        vm.Dpi.Text = "800.5";
+        Flush();
+
+        Assert.AreEqual("Mouse DPI must be a whole number from 0 to 999999.", vm.ValidationMessage);
+        Assert.IsFalse(vm.ApplyCommand.CanExecute(null));
     });
 
     [TestMethod]

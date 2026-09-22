@@ -43,6 +43,7 @@ namespace grapher.Models
             ToolStripMenuItem deviceMenuItem,
             ToolStripMenuItem scaleMenuItem,
             ToolStripMenuItem themeMenuItem,
+            ToolStripMenuItem speedOverlayMenuItem,
             ToolStripTextBox dpiTextBox,
             ToolStripTextBox pollRateTextBox,
             Panel directionalityPanel,
@@ -714,7 +715,8 @@ namespace grapher.Models
                 toggleButton,
                 mouseWatcher,
                 scaleMenuItem,
-                deviceMenuItem);
+                deviceMenuItem,
+                speedOverlayMenuItem);
         }
 
         #endregion Methods

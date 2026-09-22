@@ -39,9 +39,9 @@ namespace grapher.Models.Charts.ChartState
 
         internal bool TwoDotsPerGraph { get; set; }
 
-        public virtual void MakeDots(double x, double y, double timeInMs)
+        public virtual double MakeDots(double x, double y, double timeInMs)
         {
-            Data.CalculateDots(x, y, timeInMs);
+            return Data.CalculateDots(x, y, timeInMs);
         }
 
         public abstract void Bind();

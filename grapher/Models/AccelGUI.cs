@@ -27,7 +27,8 @@ namespace grapher
             Button resetButton,
             MouseWatcher mouseWatcher,
             ToolStripMenuItem scaleMenuItem,
-            ToolStripMenuItem deviceMenuItem)
+            ToolStripMenuItem deviceMenuItem,
+            ToolStripMenuItem speedOverlayMenuItem)
         {
             AccelForm = accelForm;
             AccelCalculator = accelCalculator;
@@ -37,12 +38,14 @@ namespace grapher
             ResetButton = resetButton;
             ScaleMenuItem = scaleMenuItem;
             DeviceMenuItem = deviceMenuItem;
+            SpeedOverlayMenuItem = speedOverlayMenuItem;
             Settings = settings;
             DefaultButtonFont = WriteButton.Font;
             SmallButtonFont = new Font(WriteButton.Font.Name, WriteButton.Font.Size * Constants.SmallButtonSizeFactor);
             MouseWatcher = mouseWatcher;
 
             DeviceMenuItem.Click += DeviceMenuItemClick;
+            SpeedOverlayMenuItem.CheckedChanged += OnSpeedOverlayCheckedChanged;
             ScaleMenuItem.Click += new System.EventHandler(OnScaleMenuItemClick);
             WriteButton.Click += new System.EventHandler(OnWriteButtonClick);
             ResetButton.Click += new System.EventHandler(ResetDriverEventHandler);
@@ -89,6 +92,12 @@ namespace grapher
         public ToolStripMenuItem ScaleMenuItem { get; }
 
         public ToolStripMenuItem DeviceMenuItem { get; }
+
+        public ToolStripMenuItem SpeedOverlayMenuItem { get; }
+
+        private SpeedOverlay SpeedOverlay { get; set; }
+
+        private Point? SpeedOverlayLocation { get; set; }
 
         private Timer ChartRefresh { get; }
 
@@ -287,6 +296,42 @@ namespace grapher
                     UpdateActiveSettingsFromFields();
                 }
             }
+        }
+
+        private void OnSpeedOverlayCheckedChanged(object sender, EventArgs e)
+        {
+            if (SpeedOverlayMenuItem.Checked)
+            {
+                ShowSpeedOverlay();
+            }
+            else
+            {
+                SpeedOverlay?.Close();
+            }
+        }
+
+        private void ShowSpeedOverlay()
+        {
+            SpeedOverlay = new SpeedOverlay(MouseWatcher.SpeedRecorder);
+            SpeedOverlay.Location = SpeedOverlayLocation ?? DefaultSpeedOverlayLocation();
+            SpeedOverlay.FormClosed += OnSpeedOverlayClosed;
+            SpeedOverlay.Show();
+        }
+
+        private void OnSpeedOverlayClosed(object sender, FormClosedEventArgs e)
+        {
+            SpeedOverlayLocation = SpeedOverlay.Location;
+            SpeedOverlay = null;
+            SpeedOverlayMenuItem.Checked = false;
+        }
+
+        private Point DefaultSpeedOverlayLocation()
+        {
+            var workingArea = Screen.FromControl(AccelForm).WorkingArea;
+
+            return new Point(
+                workingArea.Left + Constants.SpeedOverlayMargin,
+                workingArea.Top + Constants.SpeedOverlayMargin);
         }
 
         #endregion Methods

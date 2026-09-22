@@ -148,6 +148,30 @@ namespace grapher.Common
 
         /// <summary> DPI to which driver is normalizing inputs </summary>
         public const double DriverNormalizedDPI = 1000.0;
+
+        public const double MouseMoveMaxTimeInMs = 100;
+
+        public const int SpeedHistoryCapacity = 1 << 16;
+
+        public const double SpeedOverlayOpacity = 0.9;
+
+        public const int SpeedOverlayRefreshIntervalMs = 16;
+
+        public const int SpeedOverlayMargin = 16;
+
+        public const int SpeedOverlayPadding = 8;
+
+        public const double SpeedOverlayGraphWindowMs = 5000;
+
+        public const int SpeedOverlayGraphPixelsPerBin = 2;
+
+        public const double SpeedOverlayGraphMinScale = 1;
+
+        public const double SpeedOverlayCurrentSpeedWindowMs = 100;
+
+        public const string SpeedOverlayInputTitle = "Input speed (counts/ms)";
+
+        public const string SpeedOverlayOutputTitle = "Output speed (counts/ms)";
         #endregion Constants
 
         #region ReadOnly
@@ -163,6 +187,8 @@ namespace grapher.Common
 
         public static readonly Point Origin = new Point(0);
         public static readonly Size MaxSize = new Size(9999, 9999);
+
+        public static readonly Size SpeedOverlaySize = new Size(280, 200);
 
         /// <summary> Amount of rows when only the sensitivity chart is shown. </summary>
         public static readonly int RegularRowCount = 1;

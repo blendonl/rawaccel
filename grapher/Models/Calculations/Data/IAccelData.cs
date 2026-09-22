@@ -8,7 +8,7 @@ namespace grapher.Models.Calculations.Data
 {
     public interface IAccelData
     {
-        void CalculateDots(double x, double y, double timeInMs);
+        double CalculateDots(double x, double y, double timeInMs);
 
         void CreateGraphData(ManagedAccel accel, Profile settings);
 

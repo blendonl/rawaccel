@@ -25,7 +25,7 @@ namespace grapher.Models.Calculations.Data
 
         private AccelCalculator Calculator { get; }
 
-        public void CalculateDots(double x, double y, double timeInMs)
+        public double CalculateDots(double x, double y, double timeInMs)
         {
             var outVelocity = AccelCalculator.Velocity(x, y, timeInMs);
 
@@ -34,6 +34,7 @@ namespace grapher.Models.Calculations.Data
             Points.Sensitivity.Set(inCombVel, combSens);
             Points.Gain.Set(inCombVel, combGain);
 
+            return X.EstimateInVelocity(outVelocity);
         }
 
         public void Clear()

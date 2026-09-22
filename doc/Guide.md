@@ -7,7 +7,7 @@ Visit the [Releases page](https://github.com/a1xd/rawaccel/releases) and navigat
 - **Prerequisites**
   * Windows 10 or Windows 11
   * Visual C++ 2019 runtime, [download here](https://aka.ms/vs/16/release/vc_redist.x64.exe)
-  * .NET Framework 4.7.2+ runtime, [download here](https://dotnet.microsoft.com/download/dotnet-framework/net48)
+  * .NET 10 runtime, [download here](https://dotnet.microsoft.com/download/dotnet/10.0)
 
 - Run `installer.exe` in the release directory to install the Raw Accel driver. Restart your computer for the installation to take effect.
 
@@ -121,18 +121,21 @@ Caps are only applicable to the [Classic](#classic), [Linear](#linear), and [Pow
 ### Anisotropy
 See "[Horizontal and Vertical](#horizontal-and-vertical)" in the philosophy section to understand what these options do.
 
+### Previewing Changes
+Edits in the GUI are drawn on the charts as you type, with the currently applied curve shown dashed behind them. Nothing is sent to the driver until you press Apply, and Revert discards edits that haven't been applied. Settings that the driver would reject are explained below the options before you apply. Hover over any setting for a short explanation of what it does.
+
 ### Last Mouse Move
-The Raw Accel GUI reads the output of the raw input stream, and thus the output of the Raw Accel Driver, and displays on the graphs red points corresponding to the last mouse movements. These calulations should be fast and your graph responsive, but it comes at the cost of higher CPU usage due to needing to refresh the graph often. This feature can be turned off in the "Charts" menu.
+The Raw Accel GUI reads the output of the raw input stream, and thus the output of the Raw Accel Driver, and displays on the graphs red points corresponding to the last mouse movements. These calulations should be fast and your graph responsive, but it comes at the cost of higher CPU usage due to needing to refresh the graph often. This feature can be turned off with the "Last mouse move" checkbox above the charts or in the "View" menu.
 
 ### Input coalescion
 See "[Coalescion](#coalescion)" in the philosophy section to understand what these options do. These settings are currently exposed only in the settings file, for now, as "Time in ms after which [setting name] is weighted at half its original value".
 
-### Menu Options
+### Charts and Menu Options
 
-#### Charts >> Scale by DPI and Poll Rate
-These options does not scale your acceleration curve in any way. Rather, DPI scales the set of points used to graph your curve, and shows you a window of input speed relevant for your chosen DPI. The poll rate is used as a safeguard for the Last Mouse Move points and therefore should be set for accuracy in that measurement.
+#### Chart DPI and Poll rate
+These fields above the charts do not scale your acceleration curve in any way. Rather, DPI scales the set of points used to graph your curve, and shows you a window of input speed relevant for your chosen DPI. The poll rate is used as a safeguard for the Last Mouse Move points and therefore should be set for accuracy in that measurement.
 
-#### Advanced >> Device Menu
+#### Settings >> Devices
 This menu provides options for individually disabling devices, and normalizing device DPI (see next section). Here you will also find an option for setting polling rate, which signals the driver to forgo the standard automatic rate adjustment. Leave this at 0 unless you are experiencing cursor stutters that only occur with acceleration enabled.
 
 #### DPI Normalization

@@ -5,12 +5,15 @@ using System.Threading;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless;
+using Avalonia.Interactivity;
+using Avalonia.LogicalTree;
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using grapher;
 using grapher.Charts;
 using grapher.Parameters;
 using grapher.Settings;
+using grapher.Speed;
 using grapher.Theming;
 using grapher.ViewModels;
 using grapher.Views;
@@ -318,6 +321,136 @@ public class MainWindowRenderTests
             Assert.IsTrue(vm.IsAnisotropyExpanded);
             Assert.AreEqual(ChartLayout.Directional, vm.PreviewCurves!.Layout);
         });
+    }
+
+    [TestMethod]
+    public void SpeedOverlayShowsRecordedSpeeds() => Run("speed-overlay-main", BuiltInSchemes.DarkName, ActiveSynchronous(), (window, vm) =>
+    {
+        vm.ShowSpeedOverlay = true;
+        Flush();
+
+        var overlay = window.SpeedOverlay;
+        Assert.IsNotNull(overlay);
+        Assert.IsTrue(vm.SpeedRecorder.Enabled);
+
+        var overlayViewModel = (SpeedOverlayViewModel)overlay.DataContext!;
+        Assert.AreEqual("-", overlayViewModel.Max);
+
+        FeedSpeeds(vm.SpeedRecorder);
+        overlayViewModel.Refresh();
+        Assert.AreEqual("24.0", overlayViewModel.Max);
+        Assert.AreEqual("Input speed (counts/ms)", overlayViewModel.Title);
+        Capture(overlay, "speed-overlay-dark");
+
+        vm.SelectedTheme = BuiltInSchemes.LightName;
+        Capture(overlay, "speed-overlay-light");
+
+        overlayViewModel.ShowOutput = true;
+        Assert.AreEqual("Output speed (counts/ms)", overlayViewModel.Title);
+        Assert.AreEqual("33.6", overlayViewModel.Max);
+        Capture(overlay, "speed-overlay-output");
+
+        overlayViewModel.ResetStatsCommand.Execute(null);
+        Assert.AreEqual("-", overlayViewModel.Max);
+
+        overlay.Close();
+        Flush();
+
+        Assert.IsFalse(vm.ShowSpeedOverlay);
+        Assert.IsNull(window.SpeedOverlay);
+        Assert.IsFalse(vm.SpeedRecorder.Enabled);
+    });
+
+    [TestMethod]
+    public void UncheckingTheMenuClosesTheSpeedOverlay() => Run("speed-overlay-toggle", BuiltInSchemes.LightName, ActiveSynchronous(), (window, vm) =>
+    {
+        vm.ShowSpeedOverlay = true;
+        Flush();
+        var overlay = window.SpeedOverlay!;
+        overlay.Position = new PixelPoint(40, 60);
+
+        vm.ShowSpeedOverlay = false;
+        Flush();
+
+        Assert.IsNull(window.SpeedOverlay);
+        Assert.IsFalse(overlay.IsVisible);
+
+        vm.ShowSpeedOverlay = true;
+        Flush();
+
+        Assert.AreEqual(new PixelPoint(40, 60), window.SpeedOverlay!.Position);
+    });
+
+    [TestMethod]
+    public void MenuTogglesUpdateTheViewModel() => Run("menu-toggles", BuiltInSchemes.LightName, ActiveSynchronous(), (window, vm) =>
+    {
+        ClickMenuItem(window, "Show speed overlay");
+        Assert.IsTrue(vm.ShowSpeedOverlay);
+        Assert.IsNotNull(window.SpeedOverlay);
+
+        var overlay = window.SpeedOverlay;
+        var overlayViewModel = (SpeedOverlayViewModel)overlay.DataContext!;
+        var contextMenu = overlay.ContextMenu!;
+        contextMenu.Open(overlay);
+        Flush();
+        ClickMenuItem(contextMenu, "Output speed");
+        Assert.IsFalse(overlayViewModel.ShowInput);
+        contextMenu.Open(overlay);
+        Flush();
+        ClickMenuItem(contextMenu, "Input speed");
+        Assert.IsTrue(overlayViewModel.ShowInput);
+        contextMenu.Close();
+
+        ClickMenuItem(window, "Show speed overlay");
+        Assert.IsFalse(vm.ShowSpeedOverlay);
+        Assert.IsNull(window.SpeedOverlay);
+
+        bool velocityAndGain = vm.ShowVelocityAndGain;
+        ClickMenuItem(window, "Show velocity and gain");
+        Assert.AreNotEqual(velocityAndGain, vm.ShowVelocityAndGain);
+
+        bool lastMouseMove = vm.ShowLastMouseMove;
+        ClickMenuItem(window, "Show last mouse move");
+        Assert.AreNotEqual(lastMouseMove, vm.ShowLastMouseMove);
+
+        bool autoApply = vm.AutoApplyOnStartup;
+        ClickMenuItem(window, "Apply settings.json on startup");
+        Assert.AreNotEqual(autoApply, vm.AutoApplyOnStartup);
+    });
+
+    private static void ClickMenuItem(ILogical root, string header)
+    {
+        var item = root.GetLogicalDescendants().OfType<MenuItem>().Single(m => Equals(m.Header, header));
+
+        if (item.ToggleType == MenuItemToggleType.CheckBox)
+        {
+            item.SetCurrentValue(MenuItem.IsCheckedProperty, !item.IsChecked);
+        }
+        else if (item.ToggleType == MenuItemToggleType.Radio && !item.IsChecked)
+        {
+            item.SetCurrentValue(MenuItem.IsCheckedProperty, true);
+        }
+
+        item.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
+        Flush();
+    }
+
+    private static void FeedSpeeds(SpeedRecorder recorder)
+    {
+        double now = recorder.NowMs;
+
+        for (double time = now - 5200; time < now - 20; time += 1)
+        {
+            double phase = (time - now + 350) / 700;
+            double speed = Math.Max(0, 18 * Math.Sin(phase * Math.PI)) + Math.Max(0, 6 * Math.Sin(phase * 3.1));
+
+            if (speed > 0.05)
+            {
+                recorder.History.Add(time, speed, speed * 1.4);
+                recorder.InputStatistics.Add(speed);
+                recorder.OutputStatistics.Add(speed * 1.4);
+            }
+        }
     }
 
     private static Profile ActiveSynchronous()

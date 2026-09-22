@@ -16,9 +16,12 @@ public partial class MainWindow : Window
     private const string FaqUrl = "https://github.com/a1xd/rawaccel/blob/master/doc/FAQ.md";
     private const double DefaultWidth = 1280;
     private const double DefaultHeight = 860;
+    private const int SpeedOverlayMargin = 16;
 
     private MainWindowViewModel? viewModel;
     private bool restoreMaximized;
+    private SpeedOverlayWindow? speedOverlay;
+    private PixelPoint? speedOverlayPosition;
 
     public MainWindow()
     {
@@ -37,6 +40,8 @@ public partial class MainWindow : Window
         BuildThemeMenu();
         RestorePlacement(viewModel.Gui.Window);
     }
+
+    internal SpeedOverlayWindow? SpeedOverlay => speedOverlay;
 
     protected override void OnOpened(EventArgs e)
     {
@@ -69,6 +74,12 @@ public partial class MainWindow : Window
         }
 
         base.OnClosing(e);
+    }
+
+    protected override void OnClosed(EventArgs e)
+    {
+        speedOverlay?.Close();
+        base.OnClosed(e);
     }
 
     private void RestorePlacement(WindowPlacement? placement)
@@ -141,6 +152,66 @@ public partial class MainWindow : Window
                 item.IsChecked = (string?)item.Tag == viewModel.SelectedTheme;
             }
         }
+        else if (e.PropertyName == nameof(MainWindowViewModel.ShowSpeedOverlay))
+        {
+            UpdateSpeedOverlay();
+        }
+    }
+
+    private void UpdateSpeedOverlay()
+    {
+        if (viewModel is null)
+        {
+            return;
+        }
+
+        if (!viewModel.ShowSpeedOverlay)
+        {
+            speedOverlay?.Close();
+            return;
+        }
+
+        if (speedOverlay is not null)
+        {
+            return;
+        }
+
+        speedOverlay = new SpeedOverlayWindow(new SpeedOverlayViewModel(viewModel.SpeedRecorder), viewModel.Themes)
+        {
+            Position = speedOverlayPosition ?? DefaultSpeedOverlayPosition(),
+        };
+        speedOverlay.Closing += OnSpeedOverlayClosing;
+        speedOverlay.Closed += OnSpeedOverlayClosed;
+        speedOverlay.Show();
+    }
+
+    private void OnSpeedOverlayClosing(object? sender, WindowClosingEventArgs e)
+    {
+        if (speedOverlay is not null)
+        {
+            speedOverlayPosition = speedOverlay.Position;
+        }
+    }
+
+    private void OnSpeedOverlayClosed(object? sender, EventArgs e)
+    {
+        if (speedOverlay is not null)
+        {
+            speedOverlay.Closing -= OnSpeedOverlayClosing;
+            speedOverlay.Closed -= OnSpeedOverlayClosed;
+            speedOverlay = null;
+        }
+
+        if (viewModel is not null)
+        {
+            viewModel.ShowSpeedOverlay = false;
+        }
+    }
+
+    private PixelPoint DefaultSpeedOverlayPosition()
+    {
+        var area = (Screens.ScreenFromWindow(this) ?? Screens.Primary)?.WorkingArea ?? default;
+        return new PixelPoint(area.X + SpeedOverlayMargin, area.Y + SpeedOverlayMargin);
     }
 
     private async System.Threading.Tasks.Task ShowDeviceMenu()

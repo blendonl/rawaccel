@@ -1,0 +1,105 @@
+name: release
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-2025-vs2026
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: microsoft/setup-msbuild@v3
+        with:
+          vs-version: "[18.0,)"
+
+      - name: Read the version
+        id: version
+        shell: pwsh
+        run: '"version=$(./tools/version.ps1)" >> $env:GITHUB_OUTPUT'
+
+      - name: Build
+        run: >-
+          msbuild rawaccel.sln
+          "-t:wrapper-deps;wrapper;grapher;writer;wrapper-tests;grapher-tests"
+          -p:Configuration=Release -p:Platform=x64
+          -restore -m -nologo -v:m
+
+      - name: Test
+        run: |
+          dotnet test wrapper-tests/wrapper-tests.csproj --no-build -c Release -p:Platform=x64
+          dotnet test grapher-tests/grapher-tests.csproj --no-build -c Release -p:Platform=x64
+
+      - name: Package
+        shell: pwsh
+        run: ./tools/package.ps1
+
+      - name: Install and uninstall the package
+        shell: powershell
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $dir = Join-Path $env:RUNNER_TEMP 'rawaccel'
+          $exe = Join-Path $dir 'rawaccel.exe'
+          $shortcut = Join-Path ([Environment]::GetFolderPath('Programs')) 'Raw Accel.lnk'
+          $entry = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\RawAccel'
+
+          ./install.ps1 -Package "dist/rawaccel-$env:VERSION-win64.zip" -InstallDir $dir -SkipDriver
+          if ((Get-Item $exe).VersionInfo.ProductVersion -ne $env:VERSION) { throw 'rawaccel.exe does not report the release version' }
+          if (-not (Test-Path (Join-Path $dir 'uninstall.ps1'))) { throw 'uninstall.ps1 was not installed' }
+          if (-not (Test-Path $shortcut)) { throw 'no Start menu shortcut' }
+          if ((Get-ItemProperty $entry).DisplayVersion -ne $env:VERSION) { throw 'the Apps entry has the wrong version' }
+
+          & (Join-Path $dir 'uninstall.ps1') -KeepDriver
+          if (Test-Path $dir) { throw 'the install folder is still there' }
+          if (Test-Path $shortcut) { throw 'the Start menu shortcut is still there' }
+          if (Test-Path $entry) { throw 'the Apps entry is still there' }
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: rawaccel-win64
+          path: dist/*.zip
+
+  release:
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    concurrency: release
+    env:
+      VERSION: ${{ needs.build.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Look for an untagged version
+        id: tag
+        run: |
+          git ls-remote --exit-code --tags origin "refs/tags/v$VERSION" > /dev/null && status=0 || status=$?
+          case $status in
+            0) echo "v$VERSION is already tagged, nothing to release" ;;
+            2) echo "untagged=true" >> "$GITHUB_OUTPUT" ;;
+            *) exit "$status" ;;
+          esac
+
+      - uses: actions/download-artifact@v8
+        if: steps.tag.outputs.untagged == 'true'
+        with:
+          name: rawaccel-win64
+          path: dist
+
+      - name: Publish the release
+        if: steps.tag.outputs.untagged == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "v$VERSION" "dist/rawaccel-$VERSION-win64.zip" \
+            --target "$GITHUB_SHA" \
+            --title "Raw Accel $VERSION" \
+            --generate-notes

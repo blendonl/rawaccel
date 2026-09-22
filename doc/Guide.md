@@ -127,6 +127,9 @@ Edits in the GUI are drawn on the charts as you type, with the currently applied
 ### Last Mouse Move
 The Raw Accel GUI reads the output of the raw input stream, and thus the output of the Raw Accel Driver, and displays on the graphs red points corresponding to the last mouse movements. These calulations should be fast and your graph responsive, but it comes at the cost of higher CPU usage due to needing to refresh the graph often. This feature can be turned off with the "Last mouse move" checkbox above the charts or in the "View" menu.
 
+### Speed Overlay
+"View" >> "Show speed overlay" opens a small always-on-top window that keeps working while you play in windowed or borderless games. It graphs the last 5 seconds of mouse speed and shows the current, lowest, highest, average, median and 95th percentile speeds in counts/ms. Right-click it to switch between input speed (your hand speed, estimated from the applied curve) and output speed (after acceleration), to reset the stats, or to close it; drag it with the left button to move it. The stats start fresh each time the overlay opens, and the first movement after the mouse was at rest is left out of them. The overlay can't draw over games running in exclusive fullscreen.
+
 ### Input coalescion
 See "[Coalescion](#coalescion)" in the philosophy section to understand what these options do. These settings are currently exposed only in the settings file, for now, as "Time in ms after which [setting name] is weighted at half its original value".
 

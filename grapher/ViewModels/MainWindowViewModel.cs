@@ -18,6 +18,7 @@ namespace grapher.ViewModels;
 public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
 {
     private const double MaxMoveIntervalMs = 100;
+    private const int MaxDeviceValue = 999999;
 
     private readonly DriverSession session;
     private readonly AppPaths paths;
@@ -25,7 +26,10 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     private readonly Stopwatch moveTimer = Stopwatch.StartNew();
     private readonly DispatcherTimer frameTimer;
     private Profile draft = new();
+    private double draftDpi;
+    private double draftPollingRate;
     private bool loading;
+    private bool syncingProfiles;
     private bool previewQueued;
     private bool dotsDirty;
     private DotSet? pendingDots;
@@ -80,13 +84,30 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
             v => draft.inputSpeedArgs.lpNorm = v,
             () => session.ActiveProfile.inputSpeedArgs.lpNorm);
 
+        Dpi = new NumberRowViewModel(
+            "Mouse DPI",
+            "Your mouse's DPI while you use this profile. Normalizes sensitivity and input speed to 1000 DPI. 0 turns normalization off.",
+            () => draftDpi,
+            v => draftDpi = v,
+            () => session.ActiveDeviceConfig.dpi);
+        PollingRate = new NumberRowViewModel(
+            "Polling rate",
+            "Your mouse's polling rate in Hz while you use this profile. Keep at 0 for automatic adjustment. Only set it if you see stutters that happen only with acceleration on.",
+            () => draftPollingRate,
+            v => draftPollingRate = v,
+            () => session.ActiveDeviceConfig.pollingRate);
+
+        MouseRows = new ObservableCollection<RowViewModel> { Dpi, PollingRate };
         GlobalRows = new ObservableCollection<RowViewModel> { Sensitivity, VerticalRatio, Rotation };
         AnisotropyRows = new ObservableCollection<RowViewModel> { Domain, Range, LpNorm };
 
-        foreach (var row in GlobalRows.Concat(AnisotropyRows))
+        foreach (var row in AllRows)
         {
             row.Edited += OnDraftEdited;
         }
+
+        Dpi.Edited += (_, _) => SyncChartScale();
+        PollingRate.Edited += (_, _) => SyncChartScale();
 
         EditorX.Edited += OnDraftEdited;
         EditorY.Edited += OnDraftEdited;
@@ -117,6 +138,8 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
 
     public event EventHandler? AboutRequested;
 
+    public event EventHandler<ProfileDialogRequest>? ProfileDialogRequested;
+
     public GuiSettings Gui { get; }
 
     public DriverSession Session => session;
@@ -136,6 +159,14 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     public PairRowViewModel Range { get; }
 
     public NumberRowViewModel LpNorm { get; }
+
+    public NumberRowViewModel Dpi { get; }
+
+    public NumberRowViewModel PollingRate { get; }
+
+    public ObservableCollection<RowViewModel> MouseRows { get; }
+
+    public ObservableCollection<ProfileOption> Profiles { get; } = new();
 
     public ObservableCollection<RowViewModel> GlobalRows { get; }
 
@@ -160,6 +191,12 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     public bool CanReset => !IsApplying;
 
     public bool CanRevert => HasUnappliedChanges && !IsApplying;
+
+    public bool CanManageProfiles => !HasUnappliedChanges && !IsApplying;
+
+    public bool CanDeleteProfile => CanManageProfiles && Profiles.Count > 1;
+
+    public bool CanMakeDefaultProfile => CanManageProfiles && !session.IsDefaultSelected;
 
     public bool HasStatus => StatusMessage is not null;
 
@@ -235,6 +272,14 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private bool isAnisotropyExpanded;
 
+    [ObservableProperty]
+    private ProfileOption? selectedProfile;
+
+    [ObservableProperty]
+    private string profileUsageText = string.Empty;
+
+    private IEnumerable<RowViewModel> AllRows => MouseRows.Concat(GlobalRows).Concat(AnisotropyRows);
+
     public void ShowStartupMessage(string? message)
     {
         if (message is not null)
@@ -289,7 +334,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
 
     public async Task ApplyDevices(DeviceConfig defaults, IReadOnlyList<DeviceOverride> overrides)
     {
-        var result = session.ApplyDevices(defaults, overrides, ComposeDraft());
+        var result = session.ApplyDevices(defaults, overrides, ComposeDraft(), ComposeDeviceDraft());
         await Finish(result);
     }
 
@@ -307,8 +352,51 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     [RelayCommand(CanExecute = nameof(CanApply))]
     private async Task Apply()
     {
-        var result = session.Apply(ComposeDraft());
+        var result = session.Apply(ComposeDraft(), ComposeDeviceDraft());
         await Finish(result);
+    }
+
+    [RelayCommand(CanExecute = nameof(CanManageProfiles))]
+    private void NewProfile() => RequestProfileName(
+        "New profile",
+        "Starts from the default curve, with this profile's DPI and polling rate.",
+        "Create",
+        SuggestProfileName("New profile"),
+        currentName: null,
+        name => session.AddProfile(name, new Profile(), ComposeDeviceDraft()));
+
+    [RelayCommand(CanExecute = nameof(CanManageProfiles))]
+    private void DuplicateProfile() => RequestProfileName(
+        "Duplicate profile",
+        $"Copies \"{session.UserProfile.name}\", including its DPI and polling rate.",
+        "Duplicate",
+        SuggestProfileName($"{session.UserProfile.name} copy"),
+        currentName: null,
+        name => session.AddProfile(name, ComposeDraft(), ComposeDeviceDraft()));
+
+    [RelayCommand(CanExecute = nameof(CanManageProfiles))]
+    private void RenameProfile() => RequestProfileName(
+        "Rename profile",
+        "Mice assigned to this profile keep using it.",
+        "Rename",
+        session.UserProfile.name,
+        session.UserProfile.name,
+        session.RenameProfile);
+
+    [RelayCommand(CanExecute = nameof(CanMakeDefaultProfile))]
+    private Task MakeDefaultProfile() => Finish(session.MakeDefaultProfile());
+
+    [RelayCommand(CanExecute = nameof(CanDeleteProfile))]
+    private void DeleteProfile()
+    {
+        var name = session.UserProfile.name;
+        var fallback = session.IsDefaultSelected ? session.ProfileNames[1] : session.DefaultProfileName;
+        var dialog = ProfileDialogViewModel.ForConfirmation(
+            "Delete profile",
+            $"Delete \"{name}\"? Mice assigned to it will use the default profile, \"{fallback}\".",
+            "Delete");
+
+        ProfileDialogRequested?.Invoke(this, new ProfileDialogRequest(dialog, _ => Finish(session.DeleteProfile())));
     }
 
     [RelayCommand(CanExecute = nameof(CanReset))]
@@ -366,13 +454,112 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         StatusMessage = message;
     }
 
+    private void RequestProfileName(string title, string message, string confirmText, string initialName, string? currentName, Func<string, ApplyResult> submit)
+    {
+        var dialog = ProfileDialogViewModel.ForName(title, message, confirmText, initialName, n => session.ValidateProfileName(n, currentName));
+        ProfileDialogRequested?.Invoke(this, new ProfileDialogRequest(dialog, name => Finish(submit(name))));
+    }
+
+    private string SuggestProfileName(string baseName)
+    {
+        var root = baseName.Length > DriverSession.MaxProfileNameLength - 4
+            ? baseName[..(DriverSession.MaxProfileNameLength - 4)]
+            : baseName;
+        var candidate = root;
+
+        for (int i = 2; session.ValidateProfileName(candidate) is not null; i++)
+        {
+            candidate = $"{root} {i}";
+        }
+
+        return candidate;
+    }
+
+    private void RefreshProfiles()
+    {
+        var defaultName = session.DefaultProfileName;
+        var options = session.ProfileNames
+            .Select(name => new ProfileOption(name, name == defaultName ? $"{name} (default)" : name))
+            .ToList();
+
+        syncingProfiles = true;
+        try
+        {
+            if (!Profiles.SequenceEqual(options))
+            {
+                Profiles.Clear();
+
+                foreach (var option in options)
+                {
+                    Profiles.Add(option);
+                }
+            }
+
+            SelectedProfile = Profiles.FirstOrDefault(p => p.Name == session.UserProfile.name);
+        }
+        finally
+        {
+            syncingProfiles = false;
+        }
+
+        ProfileUsageText = DescribeProfileUsage();
+        NotifyProfileState();
+    }
+
+    private string DescribeProfileUsage()
+    {
+        if (session.IsDefaultSelected)
+        {
+            return "Used by every mouse that isn't assigned another profile in Settings → Devices.";
+        }
+
+        var devices = session.DevicesAssignedTo(session.UserProfile.name);
+
+        return devices.Count == 0
+            ? "No mouse uses this profile yet. Assign one in Settings → Devices."
+            : $"Used by {string.Join(", ", devices)}.";
+    }
+
+    private void NotifyProfileState()
+    {
+        OnPropertyChanged(nameof(CanManageProfiles));
+        OnPropertyChanged(nameof(CanDeleteProfile));
+        OnPropertyChanged(nameof(CanMakeDefaultProfile));
+        NewProfileCommand.NotifyCanExecuteChanged();
+        DuplicateProfileCommand.NotifyCanExecuteChanged();
+        RenameProfileCommand.NotifyCanExecuteChanged();
+        MakeDefaultProfileCommand.NotifyCanExecuteChanged();
+        DeleteProfileCommand.NotifyCanExecuteChanged();
+    }
+
+    private void SyncChartScale()
+    {
+        if (IsDeviceValue(draftDpi) && draftDpi > 0)
+        {
+            ChartDpiText = ((int)draftDpi).ToString();
+        }
+
+        if (IsDeviceValue(draftPollingRate) && draftPollingRate > 0)
+        {
+            ChartPollRateText = ((int)draftPollingRate).ToString();
+        }
+    }
+
+    private static bool IsDeviceValue(double value) =>
+        value >= 0 && value <= MaxDeviceValue && value == Math.Floor(value);
+
     private void LoadFromSession()
     {
         loading = true;
         try
         {
             var active = session.ActiveProfile;
+            var activeDevice = session.ActiveDeviceConfig;
             draft = ProfileCopy.CreateDraft(active, session.UserProfile);
+            draftDpi = activeDevice.dpi;
+            draftPollingRate = activeDevice.pollingRate;
+            RefreshProfiles();
+            SyncChartScale();
             IsWhole = draft.inputSpeedArgs.combineMagnitudes;
             LockXY = draft.argsX.IsEquivalentTo(draft.argsY);
             EditorX.Load(draft.argsX, active.argsX);
@@ -383,7 +570,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
                 draft.rangeXY.x != 1 || draft.rangeXY.y != 1 ||
                 draft.inputSpeedArgs.lpNorm != 2;
 
-            foreach (var row in GlobalRows.Concat(AnisotropyRows))
+            foreach (var row in AllRows)
             {
                 row.Reload();
             }
@@ -434,6 +621,18 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     }
 
     partial void OnAutoApplyOnStartupChanged(bool value) => SaveGuiSettings();
+
+    partial void OnSelectedProfileChanged(ProfileOption? value)
+    {
+        if (!syncingProfiles && value is not null && value.Name != session.UserProfile.name)
+        {
+            session.SelectProfile(value.Name);
+        }
+    }
+
+    partial void OnIsApplyingChanged(bool value) => NotifyProfileState();
+
+    partial void OnHasUnappliedChangesChanged(bool value) => NotifyProfileState();
 
     partial void OnSelectedThemeChanged(string value)
     {
@@ -502,7 +701,11 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         var message = FieldErrorMessage() ?? DriverSession.Validate(profile);
 
         ValidationMessage = message;
-        HasUnappliedChanges = !ProfileComparer.Equivalent(profile, session.ActiveProfile);
+        var activeDevice = session.ActiveDeviceConfig;
+        HasUnappliedChanges =
+            !ProfileComparer.Equivalent(profile, session.ActiveProfile) ||
+            draftDpi != activeDevice.dpi ||
+            draftPollingRate != activeDevice.pollingRate;
         PreviewCurves = message is null ? CurveSampler.Sample(profile, Gui.DPI) : null;
         ChartsChanged?.Invoke(this, EventArgs.Empty);
     }
@@ -523,11 +726,26 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         }
 
         bool invalidNumber =
-            GlobalRows.Concat(AnisotropyRows).Any(r => r.IsEnabled && r.HasError) ||
+            AllRows.Any(r => r.IsEnabled && r.HasError) ||
             editors.Any(e => e.HasErrors);
 
-        return invalidNumber ? "Some fields don't contain a valid number." : null;
+        if (invalidNumber)
+        {
+            return "Some fields don't contain a valid number.";
+        }
+
+        if (!IsDeviceValue(draftDpi))
+        {
+            return $"Mouse DPI must be a whole number from 0 to {MaxDeviceValue}.";
+        }
+
+        return IsDeviceValue(draftPollingRate)
+            ? null
+            : $"Polling rate must be a whole number from 0 to {MaxDeviceValue}.";
     }
+
+    private ProfileDeviceConfig ComposeDeviceDraft() =>
+        new() { dpi = (int)draftDpi, pollingRate = (int)draftPollingRate };
 
     private Profile ComposeDraft()
     {

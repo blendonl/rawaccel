@@ -11,12 +11,12 @@
         <CheckBox Margin="0,0,20,0" Content="Last mouse move" IsChecked="{Binding ShowLastMouseMove}"
                   ToolTip.Tip="Mark your latest mouse movement on the charts." />
         <StackPanel Margin="0,0,20,0" Orientation="Horizontal" Spacing="6"
-                    ToolTip.Tip="Your mouse's DPI. Sets the range of input speeds shown on the charts. Does not change your sensitivity.">
+                    ToolTip.Tip="Your mouse's DPI. Sets the range of input speeds shown on the charts. Does not change your sensitivity. Follows the profile's Mouse DPI when it's set.">
           <TextBlock Text="Chart DPI" VerticalAlignment="Center" />
           <TextBox Width="76" Text="{Binding ChartDpiText}" Classes.error="{Binding ChartDpiHasError}" />
         </StackPanel>
         <StackPanel Margin="0,0,20,0" Orientation="Horizontal" Spacing="6"
-                    ToolTip.Tip="Your mouse's polling rate in Hz. Keeps the last-mouse-move marker accurate.">
+                    ToolTip.Tip="Your mouse's polling rate in Hz. Keeps the last-mouse-move marker accurate. Follows the profile's polling rate when it's set.">
           <TextBlock Text="Poll rate" VerticalAlignment="Center" />
           <TextBox Width="76" Text="{Binding ChartPollRateText}" Classes.error="{Binding ChartPollRateHasError}" />
         </StackPanel>

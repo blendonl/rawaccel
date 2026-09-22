@@ -178,6 +178,35 @@ public class MainWindowRenderTests
         }
     });
 
+    [TestMethod]
+    public void RendersDialogs() => Run("dialogs", BuiltInSchemes.LightName, ActiveSynchronous(), (window, vm) =>
+    {
+        var devices = new DeviceMenuWindow { DataContext = new DeviceMenuViewModel(vm.Session) };
+        devices.Show();
+        Flush();
+        Capture(devices, "device-menu");
+        devices.Close();
+
+        var about = new AboutWindow { DataContext = vm };
+        about.Show();
+        Flush();
+        Capture(about, "about");
+        about.Close();
+    });
+
+    [TestMethod]
+    public void OpensAnisotropyWhenItIsInUse()
+    {
+        var profile = ActiveSynchronous();
+        profile.domainXY.y = 2;
+
+        Run("anisotropy-open", BuiltInSchemes.LightName, profile, (window, vm) =>
+        {
+            Assert.IsTrue(vm.IsAnisotropyExpanded);
+            Assert.AreEqual(ChartLayout.Directional, vm.PreviewCurves!.Layout);
+        });
+    }
+
     private static Profile ActiveSynchronous()
     {
         var profile = new Profile();

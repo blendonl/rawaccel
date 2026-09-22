@@ -32,7 +32,18 @@ Uninstall it from Settings > Apps > Installed apps, or run `uninstall.ps1` in th
 
 ## Releases
 
-Every push builds, tests and packages `rawaccel-<version>-win64.zip` on a Windows runner; the zip is attached to the run. The version comes from `common/rawaccel-version.h`. When master has a version that is not tagged yet, CI tags it and publishes the release, so bump `RA_VER_*` to release.
+Every push builds, tests and packages `rawaccel-<version>-win64.zip` on a Windows runner; the zip is attached to the run.
+
+Merging to master releases automatically. `tools/next-version.sh` reads the [conventional commits](https://www.conventionalcommits.org) since the last `v*` tag and bumps that version:
+
+| Commits since the last release | Bump |
+| --- | --- |
+| `feat!:`, `fix(scope)!:` or a `BREAKING CHANGE:` footer | major |
+| `feat:` | minor |
+| `fix:` or `perf:` | patch |
+| only `docs:`, `ci:`, `chore:`, `build:`, `refactor:`, `test:` … | none, nothing is released |
+
+CI writes the new version into `common/rawaccel-version.h`, builds the package with it, commits `chore(release): <version>` to master, and publishes the `v<version>` release on that commit. With squash merges the PR title is the commit that counts, so give it a conventional prefix. To pick a version yourself, set `RA_VER_*` in `common/rawaccel-version.h`; a version higher than the computed one wins.
 
 The driver is not rebuilt. The package ships the Microsoft-signed driver, installer and uninstaller from `signed/x64`, and that driver reports 1.7.0, so the version must stay at 1.7.0 or above.
 

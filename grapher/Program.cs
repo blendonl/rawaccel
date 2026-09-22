@@ -1,42 +1,57 @@
-﻿using System;
+using System;
 using System.Globalization;
-using System.Windows.Forms;
+using System.IO;
+using System.Threading;
+using Avalonia;
+using grapher.Platform;
 
-namespace grapher
+namespace grapher;
+
+public static class Program
 {
-    static class Program
+    private const string InstanceMutexName = "RawAccelGrapher";
+
+    [STAThread]
+    public static int Main(string[] args)
     {
-        /// <summary>
-        /// The main entry point for the application.
-        /// </summary>
-        [STAThread]
-        static void Main()
+        using var mutex = new Mutex(true, InstanceMutexName, out bool isFirstInstance);
+
+        if (!isFirstInstance)
         {
-            var mutex = new System.Threading.Mutex(true, "RawAccelGrapher", out bool result);
-
-            if (!result)
-            {
-                MessageBox.Show("Another instance of the Raw Accel Grapher is already running.");
-                return;
-            }
-
-            CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
-            CultureInfo.DefaultThreadCurrentUICulture = CultureInfo.InvariantCulture;
-
-            AppDomain.CurrentDomain.UnhandledException += GlobalUnhandledExceptionHandler;
-
-            Application.EnableVisualStyles();
-            Application.SetCompatibleTextRenderingDefault(false);
-            Application.Run(new RawAcceleration());
-
-            GC.KeepAlive(mutex);      
+            NativeDialogs.Show("Another instance of the Raw Accel Grapher is already running.", "Raw Accel");
+            return 1;
         }
 
-        static void GlobalUnhandledExceptionHandler(object sender, UnhandledExceptionEventArgs e)
-        {
-            var ex = (Exception)e.ExceptionObject;
-            System.IO.File.WriteAllText("error.log", ex.ToString());
-            MessageBox.Show(ex.Message, "Error");
-        }
+        CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
+        CultureInfo.DefaultThreadCurrentUICulture = CultureInfo.InvariantCulture;
+        AppDomain.CurrentDomain.UnhandledException += OnUnhandledException;
+
+        return BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
     }
+
+    public static AppBuilder BuildAvaloniaApp() =>
+        AppBuilder.Configure<App>()
+            .UseWin32()
+            .UseSkia()
+            .UseHarfBuzz()
+            .LogToTrace();
+
+    public static void ReportFatal(Exception exception)
+    {
+        try
+        {
+            File.WriteAllText(Path.Combine(AppContext.BaseDirectory, "error.log"), exception.ToString());
+        }
+        catch (IOException)
+        {
+        }
+        catch (UnauthorizedAccessException)
+        {
+        }
+
+        NativeDialogs.Show(exception.Message, "Error");
+    }
+
+    private static void OnUnhandledException(object sender, UnhandledExceptionEventArgs e) =>
+        ReportFatal((Exception)e.ExceptionObject);
 }

@@ -141,7 +141,7 @@ function Install-RawAccel {
         throw 'Raw Accel is only released for x64 Windows. Run this from 64-bit PowerShell on an x64 PC.'
     }
 
-    $InstallDir = [IO.Path]::GetFullPath($InstallDir).TrimEnd('\')
+    $InstallDir = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($InstallDir).TrimEnd('\')
     $release = if ($Package) { Get-LocalPackage $Package } else { Get-RawAccelRelease $Version }
     $releaseVersion = $release.Tag.TrimStart('v')
     $exe = Join-Path $InstallDir 'rawaccel.exe'

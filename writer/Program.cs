@@ -4,7 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Windows.Forms;
+using System.Runtime.InteropServices;
 
 namespace writer
 {
@@ -12,12 +12,15 @@ namespace writer
     class Program
     {
         static readonly string DefaultPath = "settings.json";
-        static readonly string Usage = 
+        static readonly string Usage =
             $"Usage: {AppDomain.CurrentDomain.FriendlyName} <settings file path>\n";
+
+        [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+        static extern int MessageBoxW(IntPtr hWnd, string text, string caption, uint type);
 
         static void Exit(string msg)
         {
-            MessageBox.Show(msg, "Raw Accel writer");
+            MessageBoxW(IntPtr.Zero, msg, "Raw Accel writer", 0);
             Environment.Exit(1);
         }
 

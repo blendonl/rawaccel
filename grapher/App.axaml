@@ -1,0 +1,124 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="grapher.App"
+             RequestedThemeVariant="Default">
+  <Application.Resources>
+    <SolidColorBrush x:Key="RaBackgroundBrush" Color="#F3F3F3" />
+    <SolidColorBrush x:Key="RaSurfaceBrush" Color="#FFFFFF" />
+    <SolidColorBrush x:Key="RaForegroundBrush" Color="#1B1B1B" />
+    <SolidColorBrush x:Key="RaMutedForegroundBrush" Color="#AD1B1B1B" />
+    <SolidColorBrush x:Key="RaBorderBrush" Color="#D6D6D6" />
+    <SolidColorBrush x:Key="RaAccentBrush" Color="#0067C0" />
+    <SolidColorBrush x:Key="RaEditedBrush" Color="#FFF4CE" />
+    <SolidColorBrush x:Key="RaEditedForegroundBrush" Color="#1B1B1B" />
+    <SolidColorBrush x:Key="RaMenuBrush" Color="#F3F3F3" />
+    <SolidColorBrush x:Key="RaErrorBrush" Color="#C42B1C" />
+    <SolidColorBrush x:Key="RaErrorBackgroundBrush" Color="#FDE7E9" />
+    <SolidColorBrush x:Key="RaWarningBackgroundBrush" Color="#FFF4CE" />
+  </Application.Resources>
+
+  <Application.Styles>
+    <FluentTheme />
+
+    <Style Selector="Border.card">
+      <Setter Property="Background" Value="{DynamicResource RaSurfaceBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource RaBorderBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="8" />
+      <Setter Property="Padding" Value="16,14" />
+    </Style>
+
+    <Style Selector="TextBlock.section">
+      <Setter Property="FontSize" Value="15" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+
+    <Style Selector="TextBlock.subsection">
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Margin" Value="0,6,0,2" />
+    </Style>
+
+    <Style Selector="TextBlock.hint">
+      <Setter Property="Foreground" Value="{DynamicResource RaMutedForegroundBrush}" />
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+
+    <Style Selector="TextBlock.columnHeader">
+      <Setter Property="Foreground" Value="{DynamicResource RaMutedForegroundBrush}" />
+      <Setter Property="FontSize" Value="12" />
+    </Style>
+
+    <Style Selector="TextBlock.label">
+      <Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+    </Style>
+
+    <Style Selector="TextBlock.active">
+      <Setter Property="Foreground" Value="{DynamicResource RaMutedForegroundBrush}" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="HorizontalAlignment" Value="Right" />
+      <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+      <Setter Property="FontSize" Value="13" />
+    </Style>
+
+    <Style Selector="TextBox.edited">
+      <Setter Property="Background" Value="{DynamicResource RaEditedBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource RaEditedForegroundBrush}" />
+    </Style>
+
+    <Style Selector="ComboBox.edited">
+      <Setter Property="Background" Value="{DynamicResource RaEditedBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource RaEditedForegroundBrush}" />
+    </Style>
+
+    <Style Selector="TextBox.error">
+      <Setter Property="BorderBrush" Value="{DynamicResource RaErrorBrush}" />
+    </Style>
+
+    <Style Selector="TextBox.error:pointerover /template/ Border#PART_BorderElement">
+      <Setter Property="BorderBrush" Value="{DynamicResource RaErrorBrush}" />
+    </Style>
+
+    <Style Selector="TextBox.error:focus /template/ Border#PART_BorderElement">
+      <Setter Property="BorderBrush" Value="{DynamicResource RaErrorBrush}" />
+    </Style>
+
+    <Style Selector="TextBox.number">
+      <Setter Property="MinWidth" Value="96" />
+      <Setter Property="HorizontalAlignment" Value="Stretch" />
+    </Style>
+
+    <Style Selector="Border.message">
+      <Setter Property="Background" Value="{DynamicResource RaWarningBackgroundBrush}" />
+      <Setter Property="CornerRadius" Value="6" />
+      <Setter Property="Padding" Value="12,8" />
+    </Style>
+
+    <Style Selector="Border.message.error">
+      <Setter Property="Background" Value="{DynamicResource RaErrorBackgroundBrush}" />
+    </Style>
+
+    <Style Selector="Border.message TextBlock">
+      <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+
+    <Style Selector="Border.footer">
+      <Setter Property="Background" Value="{DynamicResource RaSurfaceBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource RaBorderBrush}" />
+      <Setter Property="BorderThickness" Value="0,1,0,0" />
+      <Setter Property="Padding" Value="16,12" />
+    </Style>
+
+    <Style Selector="Border.toolbar">
+      <Setter Property="Background" Value="{DynamicResource RaSurfaceBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource RaBorderBrush}" />
+      <Setter Property="BorderThickness" Value="0,0,0,1" />
+      <Setter Property="Padding" Value="12,6" />
+    </Style>
+
+    <Style Selector="Menu">
+      <Setter Property="Background" Value="{DynamicResource RaMenuBrush}" />
+    </Style>
+  </Application.Styles>
+</Application>

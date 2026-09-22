@@ -81,6 +81,27 @@ namespace wrapper_tests
         }
 
         [TestMethod]
+        public void LargeLookupTables_CompareWithoutOverrun()
+        {
+            var profile = new Profile();
+            profile.argsX.mode = AccelMode.lut;
+            profile.argsX.length = AccelArgs.MaxLutPoints * 2;
+            for (int i = 0; i < profile.argsX.length; i++)
+            {
+                profile.argsX.data[i] = i + 1;
+            }
+
+            profile.argsY = profile.argsX;
+            profile.argsY.data = (float[])profile.argsX.data.Clone();
+
+            Assert.IsTrue(profile.argsX.IsEquivalentTo(profile.argsY));
+
+            profile.argsY.data[profile.argsX.length - 1] += 1;
+
+            Assert.IsFalse(profile.argsX.IsEquivalentTo(profile.argsY));
+        }
+
+        [TestMethod]
         public void NoAccelArgs_AreEquivalentRegardlessOfOtherFields()
         {
             var profile = new Profile();

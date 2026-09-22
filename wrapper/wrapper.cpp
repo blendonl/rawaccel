@@ -169,9 +169,7 @@ public value struct AccelArgs
 
                 for (int i = 0; i < length; i++)
                 {
-                    int index = i * 2;
-                    if (data[index] != other.data[index] ||
-                        data[index+1] != other.data[index+1])
+                    if (data[i] != other.data[i])
                     {
                         isEquivalent = false;
                         break;
@@ -544,12 +542,13 @@ public:
 
     virtual ~ManagedAccel()
     {
-        delete instance;
+        this->!ManagedAccel();
     }
 
     !ManagedAccel()
     {
         delete instance;
+        delete speed_instance;
     }
 
     /// <summary>

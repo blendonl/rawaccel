@@ -24,6 +24,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "wrapper-deps", "wrapper-dep
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "wrapper-tests", "wrapper-tests\wrapper-tests.csproj", "{5DE4B0AC-D49B-43AE-B2B3-00C0A91D3C68}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "grapher-tests", "grapher-tests\grapher-tests.csproj", "{3F1C2A9E-7B4D-4E8A-9C61-2D5B8F0A6E14}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -134,6 +136,18 @@ Global
 		{5DE4B0AC-D49B-43AE-B2B3-00C0A91D3C68}.Release|ARM64.Build.0 = Release|ARM64
 		{5DE4B0AC-D49B-43AE-B2B3-00C0A91D3C68}.Release|x64.ActiveCfg = Release|x64
 		{5DE4B0AC-D49B-43AE-B2B3-00C0A91D3C68}.Release|x64.Build.0 = Release|x64
+		{3F1C2A9E-7B4D-4E8A-9C61-2D5B8F0A6E14}.Debug|Any CPU.ActiveCfg = Debug|x64
+		{3F1C2A9E-7B4D-4E8A-9C61-2D5B8F0A6E14}.Debug|Any CPU.Build.0 = Debug|x64
+		{3F1C2A9E-7B4D-4E8A-9C61-2D5B8F0A6E14}.Debug|ARM64.ActiveCfg = Debug|ARM64
+		{3F1C2A9E-7B4D-4E8A-9C61-2D5B8F0A6E14}.Debug|ARM64.Build.0 = Debug|ARM64
+		{3F1C2A9E-7B4D-4E8A-9C61-2D5B8F0A6E14}.Debug|x64.ActiveCfg = Debug|x64
+		{3F1C2A9E-7B4D-4E8A-9C61-2D5B8F0A6E14}.Debug|x64.Build.0 = Debug|x64
+		{3F1C2A9E-7B4D-4E8A-9C61-2D5B8F0A6E14}.Release|Any CPU.ActiveCfg = Release|x64
+		{3F1C2A9E-7B4D-4E8A-9C61-2D5B8F0A6E14}.Release|Any CPU.Build.0 = Release|x64
+		{3F1C2A9E-7B4D-4E8A-9C61-2D5B8F0A6E14}.Release|ARM64.ActiveCfg = Release|ARM64
+		{3F1C2A9E-7B4D-4E8A-9C61-2D5B8F0A6E14}.Release|ARM64.Build.0 = Release|ARM64
+		{3F1C2A9E-7B4D-4E8A-9C61-2D5B8F0A6E14}.Release|x64.ActiveCfg = Release|x64
+		{3F1C2A9E-7B4D-4E8A-9C61-2D5B8F0A6E14}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -1,0 +1,216 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:grapher.ViewModels"
+        xmlns:p="using:grapher.Parameters"
+        xmlns:views="using:grapher.Views"
+        x:Class="grapher.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Title="Raw Accel"
+        Icon="/Assets/mouse.ico"
+        MinWidth="900" MinHeight="560"
+        Width="1280" Height="860"
+        Background="{DynamicResource RaBackgroundBrush}"
+        Foreground="{DynamicResource RaForegroundBrush}">
+
+  <Window.DataTemplates>
+    <DataTemplate DataType="vm:NumberRowViewModel">
+      <Grid ColumnDefinitions="128,*,88" Margin="0,4" IsVisible="{Binding IsVisible}"
+            ToolTip.Tip="{Binding Description}" ToolTip.ShowDelay="300">
+        <TextBlock Classes="label" Text="{Binding Label}" />
+        <Grid Grid.Column="1" ColumnDefinitions="*,Auto">
+          <TextBox Classes="number"
+                   Classes.edited="{Binding IsEdited}"
+                   Classes.error="{Binding HasError}"
+                   Text="{Binding Text}"
+                   IsEnabled="{Binding IsEditable}" />
+          <ToggleButton Grid.Column="1" Margin="6,0,0,0" Content="Lock"
+                        IsVisible="{Binding CanLock}" IsChecked="{Binding IsLocked}"
+                        ToolTip.Tip="Keep at 1" />
+        </Grid>
+        <TextBlock Grid.Column="2" Classes="active" Text="{Binding ActiveText}" IsVisible="{Binding ShowActive}" />
+      </Grid>
+    </DataTemplate>
+
+    <DataTemplate DataType="vm:PairRowViewModel">
+      <Grid ColumnDefinitions="128,*,88" Margin="0,4" IsVisible="{Binding IsVisible}"
+            ToolTip.Tip="{Binding Description}" ToolTip.ShowDelay="300">
+        <TextBlock Classes="label" Text="{Binding Label}" />
+        <Grid Grid.Column="1" ColumnDefinitions="Auto,*,8,Auto,*">
+          <TextBlock Classes="columnHeader" Text="X" VerticalAlignment="Center" Margin="0,0,6,0" />
+          <TextBox Grid.Column="1" Classes="number" MinWidth="56"
+                   Classes.edited="{Binding X.IsEdited}" Classes.error="{Binding X.HasError}"
+                   Text="{Binding X.Text}" IsEnabled="{Binding X.IsEditable}" />
+          <TextBlock Grid.Column="3" Classes="columnHeader" Text="Y" VerticalAlignment="Center" Margin="0,0,6,0" />
+          <TextBox Grid.Column="4" Classes="number" MinWidth="56"
+                   Classes.edited="{Binding Y.IsEdited}" Classes.error="{Binding Y.HasError}"
+                   Text="{Binding Y.Text}" IsEnabled="{Binding Y.IsEditable}" />
+        </Grid>
+        <TextBlock Grid.Column="2" Classes="active" Text="{Binding ActiveText}" />
+      </Grid>
+    </DataTemplate>
+
+    <DataTemplate DataType="vm:ToggleRowViewModel">
+      <Grid ColumnDefinitions="128,*,88" Margin="0,4" IsVisible="{Binding IsVisible}"
+            ToolTip.Tip="{Binding Description}" ToolTip.ShowDelay="300">
+        <TextBlock Classes="label" Text="{Binding Label}" />
+        <ToggleSwitch Grid.Column="1" IsChecked="{Binding IsChecked}" IsEnabled="{Binding IsEnabled}"
+                      OnContent="{Binding OnText}" OffContent="{Binding OffText}" />
+        <TextBlock Grid.Column="2" Classes="active" Text="{Binding ActiveText}" IsVisible="{Binding ShowActive}" />
+      </Grid>
+    </DataTemplate>
+
+    <DataTemplate DataType="vm:ChoiceRowViewModel">
+      <Grid ColumnDefinitions="128,*,88" Margin="0,4" IsVisible="{Binding IsVisible}"
+            ToolTip.Tip="{Binding Description}" ToolTip.ShowDelay="300">
+        <TextBlock Classes="label" Text="{Binding Label}" />
+        <ComboBox Grid.Column="1" HorizontalAlignment="Stretch"
+                  ItemsSource="{Binding Options}" SelectedItem="{Binding Selected}" IsEnabled="{Binding IsEnabled}">
+          <ComboBox.ItemTemplate>
+            <DataTemplate x:DataType="p:ChoiceOption">
+              <TextBlock Text="{Binding Label}" />
+            </DataTemplate>
+          </ComboBox.ItemTemplate>
+        </ComboBox>
+        <TextBlock Grid.Column="2" Classes="active" Text="{Binding ActiveText}" IsVisible="{Binding ShowActive}" />
+      </Grid>
+    </DataTemplate>
+
+    <DataTemplate DataType="vm:TextRowViewModel">
+      <StackPanel Margin="0,4" Spacing="6" IsVisible="{Binding IsVisible}">
+        <TextBlock Classes="label" Text="{Binding Label}" ToolTip.Tip="{Binding Description}" />
+        <TextBlock Classes="hint" Text="{Binding Description}" />
+        <TextBox Classes.edited="{Binding IsEdited}" Classes.error="{Binding HasError}"
+                 Text="{Binding Text}" AcceptsReturn="True" TextWrapping="Wrap"
+                 Height="120" FontFamily="Consolas, Cascadia Mono, monospace"
+                 PlaceholderText="1.5,0.8;4.4,3.3;13.5,15.2;" />
+        <TextBlock Text="{Binding ErrorMessage}" Foreground="{DynamicResource RaErrorBrush}"
+                   TextWrapping="Wrap" IsVisible="{Binding HasError}" />
+        <Expander Header="Applied points" IsVisible="{Binding ShowActive}">
+          <SelectableTextBlock Text="{Binding ActiveText}" FontFamily="Consolas, Cascadia Mono, monospace" TextWrapping="Wrap" />
+        </Expander>
+      </StackPanel>
+    </DataTemplate>
+
+    <DataTemplate DataType="vm:AxisEditorViewModel">
+      <StackPanel Spacing="2">
+        <TextBlock Classes="subsection" Text="{Binding Title}" IsVisible="{Binding HasTitle}" />
+        <Grid ColumnDefinitions="128,*,88" Margin="0,4">
+          <TextBlock Classes="label" Text="Curve" />
+          <ComboBox Grid.Column="1" HorizontalAlignment="Stretch" Classes.edited="{Binding IsCurveEdited}"
+                    ItemsSource="{Binding Curves}" SelectedItem="{Binding SelectedCurve}">
+            <ComboBox.ItemTemplate>
+              <DataTemplate x:DataType="p:CurveDefinition">
+                <TextBlock Text="{Binding Name}" ToolTip.Tip="{Binding Description}" />
+              </DataTemplate>
+            </ComboBox.ItemTemplate>
+          </ComboBox>
+          <TextBlock Grid.Column="2" Classes="active" Text="{Binding ActiveCurveName}" />
+        </Grid>
+        <TextBlock Classes="hint" Margin="128,0,0,4" Text="{Binding SelectedCurve.Description}" />
+        <ItemsControl ItemsSource="{Binding Rows}" />
+      </StackPanel>
+    </DataTemplate>
+  </Window.DataTemplates>
+
+  <DockPanel>
+    <Menu DockPanel.Dock="Top">
+      <MenuItem Header="_Settings">
+        <MenuItem Header="_Devices…" Command="{Binding OpenDeviceMenuCommand}" />
+        <MenuItem Header="Apply settings.json on startup" ToggleType="CheckBox" IsChecked="{Binding AutoApplyOnStartup}" />
+      </MenuItem>
+      <MenuItem Header="_View">
+        <MenuItem Header="Show velocity and gain" ToggleType="CheckBox" IsChecked="{Binding ShowVelocityAndGain}" />
+        <MenuItem Header="Show last mouse move" ToggleType="CheckBox" IsChecked="{Binding ShowLastMouseMove}" />
+        <Separator />
+        <MenuItem x:Name="ThemeMenu" Header="_Theme" />
+      </MenuItem>
+      <MenuItem Header="_Help">
+        <MenuItem Header="_Guide" Click="OnGuideClick" />
+        <MenuItem Header="_FAQ" Click="OnFaqClick" />
+        <Separator />
+        <MenuItem Header="_About Raw Accel" Command="{Binding OpenAboutCommand}" />
+      </MenuItem>
+    </Menu>
+
+    <Grid x:Name="MainGrid" ColumnDefinitions="460,Auto,*">
+      <DockPanel Grid.Column="0">
+        <Border DockPanel.Dock="Bottom" Classes="footer">
+          <StackPanel Spacing="10">
+            <Border Classes="message error" IsVisible="{Binding HasValidationMessage}">
+              <TextBlock Text="{Binding ValidationMessage}" />
+            </Border>
+            <Border Classes="message" Classes.error="{Binding StatusIsError}" IsVisible="{Binding HasStatus}">
+              <Grid ColumnDefinitions="*,Auto">
+                <SelectableTextBlock Text="{Binding StatusMessage}" TextWrapping="Wrap" />
+                <Button Grid.Column="1" Content="✕" Padding="8,2" Margin="8,0,0,0" VerticalAlignment="Top"
+                        Background="Transparent" Command="{Binding DismissStatusCommand}" ToolTip.Tip="Dismiss" />
+              </Grid>
+            </Border>
+            <Grid ColumnDefinitions="Auto,Auto,*,Auto">
+              <Button Content="Reset driver" Command="{Binding ResetCommand}"
+                      ToolTip.Tip="Turns acceleration off in the driver until you apply again. settings.json is not changed." />
+              <Button Grid.Column="1" Margin="8,0,0,0" Content="Revert" Command="{Binding RevertCommand}"
+                      ToolTip.Tip="Discard edits that haven't been applied." />
+              <TextBlock Grid.Column="2" Classes="hint" Text="Applying…" VerticalAlignment="Center"
+                         HorizontalAlignment="Right" Margin="0,0,10,0" IsVisible="{Binding IsApplying}" />
+              <Button Grid.Column="3" Classes="accent" Content="Apply" MinWidth="120"
+                      HorizontalContentAlignment="Center" Command="{Binding ApplyCommand}"
+                      ToolTip.Tip="Send these settings to the driver and save them to settings.json." />
+            </Grid>
+          </StackPanel>
+        </Border>
+
+        <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+          <StackPanel Margin="16" Spacing="12">
+            <Border Classes="card">
+              <StackPanel>
+                <Grid ColumnDefinitions="*,88" Margin="0,0,0,6">
+                  <TextBlock Classes="section" Text="Sensitivity" />
+                  <TextBlock Grid.Column="1" Classes="columnHeader" Text="Current" HorizontalAlignment="Right" VerticalAlignment="Bottom" />
+                </Grid>
+                <ItemsControl ItemsSource="{Binding GlobalRows}" />
+              </StackPanel>
+            </Border>
+
+            <Border Classes="card">
+              <StackPanel Spacing="4">
+                <Grid ColumnDefinitions="*,88" Margin="0,0,0,2">
+                  <TextBlock Classes="section" Text="Acceleration" />
+                  <TextBlock Grid.Column="1" Classes="columnHeader" Text="Current" HorizontalAlignment="Right" VerticalAlignment="Bottom" />
+                </Grid>
+                <Grid ColumnDefinitions="128,*" Margin="0,4"
+                      ToolTip.Tip="Whole: speed comes from the full movement and the curve scales the whole movement. Smoothest, and right for most people.&#x0a;By component: horizontal and vertical movement are accelerated separately, each with its own curve.">
+                  <TextBlock Classes="label" Text="Apply to" />
+                  <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="16">
+                    <RadioButton GroupName="Application" Content="Whole" IsChecked="{Binding IsWhole}" />
+                    <RadioButton GroupName="Application" Content="By component" IsChecked="{Binding IsByComponent}" />
+                  </StackPanel>
+                </Grid>
+                <CheckBox Margin="128,0,0,4" Content="Same curve for horizontal and vertical"
+                          IsVisible="{Binding IsByComponent}" IsChecked="{Binding LockXY}" />
+                <ContentControl Content="{Binding EditorX}" />
+                <ContentControl Content="{Binding EditorY}" IsVisible="{Binding ShowEditorY}" Margin="0,8,0,0" />
+              </StackPanel>
+            </Border>
+
+            <Border Classes="card">
+              <Expander HorizontalAlignment="Stretch" Padding="0,8,0,0" IsExpanded="{Binding IsAnisotropyExpanded}">
+                <Expander.Header>
+                  <StackPanel>
+                    <TextBlock Classes="section" Text="Anisotropy" />
+                    <TextBlock Classes="hint" Text="Different acceleration for horizontal and vertical movement" />
+                  </StackPanel>
+                </Expander.Header>
+                <ItemsControl ItemsSource="{Binding AnisotropyRows}" />
+              </Expander>
+            </Border>
+          </StackPanel>
+        </ScrollViewer>
+      </DockPanel>
+
+      <GridSplitter Grid.Column="1" Width="4" Background="{DynamicResource RaBorderBrush}" ResizeDirection="Columns" />
+
+      <views:ChartsView Grid.Column="2" />
+    </Grid>
+  </DockPanel>
+</Window>

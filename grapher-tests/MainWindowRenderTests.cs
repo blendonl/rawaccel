@@ -5,6 +5,8 @@ using System.Threading;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless;
+using Avalonia.Interactivity;
+using Avalonia.LogicalTree;
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using grapher;
@@ -265,6 +267,60 @@ public class MainWindowRenderTests
 
         Assert.AreEqual(new PixelPoint(40, 60), window.SpeedOverlay!.Position);
     });
+
+    [TestMethod]
+    public void MenuTogglesUpdateTheViewModel() => Run("menu-toggles", BuiltInSchemes.LightName, ActiveSynchronous(), (window, vm) =>
+    {
+        ClickMenuItem(window, "Show speed overlay");
+        Assert.IsTrue(vm.ShowSpeedOverlay);
+        Assert.IsNotNull(window.SpeedOverlay);
+
+        var overlay = window.SpeedOverlay;
+        var overlayViewModel = (SpeedOverlayViewModel)overlay.DataContext!;
+        var contextMenu = overlay.ContextMenu!;
+        contextMenu.Open(overlay);
+        Flush();
+        ClickMenuItem(contextMenu, "Output speed");
+        Assert.IsFalse(overlayViewModel.ShowInput);
+        contextMenu.Open(overlay);
+        Flush();
+        ClickMenuItem(contextMenu, "Input speed");
+        Assert.IsTrue(overlayViewModel.ShowInput);
+        contextMenu.Close();
+
+        ClickMenuItem(window, "Show speed overlay");
+        Assert.IsFalse(vm.ShowSpeedOverlay);
+        Assert.IsNull(window.SpeedOverlay);
+
+        bool velocityAndGain = vm.ShowVelocityAndGain;
+        ClickMenuItem(window, "Show velocity and gain");
+        Assert.AreNotEqual(velocityAndGain, vm.ShowVelocityAndGain);
+
+        bool lastMouseMove = vm.ShowLastMouseMove;
+        ClickMenuItem(window, "Show last mouse move");
+        Assert.AreNotEqual(lastMouseMove, vm.ShowLastMouseMove);
+
+        bool autoApply = vm.AutoApplyOnStartup;
+        ClickMenuItem(window, "Apply settings.json on startup");
+        Assert.AreNotEqual(autoApply, vm.AutoApplyOnStartup);
+    });
+
+    private static void ClickMenuItem(ILogical root, string header)
+    {
+        var item = root.GetLogicalDescendants().OfType<MenuItem>().Single(m => Equals(m.Header, header));
+
+        if (item.ToggleType == MenuItemToggleType.CheckBox)
+        {
+            item.SetCurrentValue(MenuItem.IsCheckedProperty, !item.IsChecked);
+        }
+        else if (item.ToggleType == MenuItemToggleType.Radio && !item.IsChecked)
+        {
+            item.SetCurrentValue(MenuItem.IsCheckedProperty, true);
+        }
+
+        item.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
+        Flush();
+    }
 
     private static void FeedSpeeds(SpeedRecorder recorder)
     {

@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using grapher.Platform;
 using Newtonsoft.Json;
 
 namespace grapher.Settings;
@@ -43,7 +44,28 @@ public sealed class GuiSettings
     [JsonProperty(Order = 6)]
     public string CurrentColorScheme { get; set; } = SystemThemeName;
 
-    [JsonProperty(Order = 7, NullValueHandling = NullValueHandling.Ignore)]
+    [JsonProperty(Order = 7)]
+    public string SpeedOverlayLockHotkey { get; set; } = OverlayHotkeys.Default.Lock.ToString();
+
+    [JsonProperty(Order = 8)]
+    public string SpeedOverlayResetHotkey { get; set; } = OverlayHotkeys.Default.Reset.ToString();
+
+    [JsonProperty(Order = 9)]
+    public string SpeedOverlayCloseHotkey { get; set; } = OverlayHotkeys.Default.Close.ToString();
+
+    [JsonIgnore]
+    public OverlayHotkeys SpeedOverlayHotkeys
+    {
+        get => OverlayHotkeys.Parse(SpeedOverlayLockHotkey, SpeedOverlayResetHotkey, SpeedOverlayCloseHotkey);
+        set
+        {
+            SpeedOverlayLockHotkey = value.Lock.ToString();
+            SpeedOverlayResetHotkey = value.Reset.ToString();
+            SpeedOverlayCloseHotkey = value.Close.ToString();
+        }
+    }
+
+    [JsonProperty(Order = 10, NullValueHandling = NullValueHandling.Ignore)]
     public WindowPlacement? Window { get; set; }
 
     public static GuiSettings Load(string path)
@@ -88,6 +110,8 @@ public sealed class GuiSettings
         {
             CurrentColorScheme = SystemThemeName;
         }
+
+        SpeedOverlayHotkeys = SpeedOverlayHotkeys;
 
         return this;
     }

@@ -34,6 +34,7 @@
       <MenuItem Header="Output speed" ToggleType="Radio" GroupName="SpeedKind" IsChecked="{Binding ShowOutput, Mode=TwoWay}" />
       <Separator />
       <MenuItem Header="Reset stats" Command="{Binding ResetStatsCommand}" />
+      <MenuItem Header="Lock overlay" Click="OnLockClick" />
       <MenuItem Header="Close" Click="OnCloseClick" />
     </ContextMenu>
   </Window.ContextMenu>

@@ -5,6 +5,7 @@ using System.Threading;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.LogicalTree;
 using Avalonia.Media.Imaging;
@@ -12,6 +13,7 @@ using Avalonia.Threading;
 using grapher;
 using grapher.Charts;
 using grapher.Parameters;
+using grapher.Platform;
 using grapher.Settings;
 using grapher.Speed;
 using grapher.Theming;
@@ -416,6 +418,79 @@ public class MainWindowRenderTests
         bool autoApply = vm.AutoApplyOnStartup;
         ClickMenuItem(window, "Apply settings.json on startup");
         Assert.AreNotEqual(autoApply, vm.AutoApplyOnStartup);
+    });
+
+    [TestMethod]
+    public void SpeedOverlayStartsLockedAndCanBeRelocked() => Run("speed-overlay-lock", BuiltInSchemes.DarkName, ActiveSynchronous(), (window, vm) =>
+    {
+        vm.ShowSpeedOverlay = true;
+        Flush();
+        var overlay = window.SpeedOverlay!;
+
+        Assert.IsTrue(overlay.IsLocked);
+        Assert.AreEqual(OverlayHotkeys.Default, overlay.Hotkeys);
+
+        overlay.IsLocked = false;
+        Capture(overlay, "speed-overlay-unlocked");
+
+        var contextMenu = overlay.ContextMenu!;
+        contextMenu.Open(overlay);
+        Flush();
+        ClickMenuItem(contextMenu, "Lock overlay");
+        contextMenu.Close();
+        Assert.IsTrue(overlay.IsLocked);
+
+        overlay.Perform(OverlayAction.Lock);
+        Assert.IsFalse(overlay.IsLocked);
+        overlay.Perform(OverlayAction.Lock);
+        Assert.IsTrue(overlay.IsLocked);
+
+        var hotkeys = vm.SpeedOverlayHotkeys.With(OverlayAction.Close, new Hotkey(KeyModifiers.Control | KeyModifiers.Shift, Key.F9));
+        vm.SpeedOverlayHotkeys = hotkeys;
+        Assert.AreEqual(hotkeys, overlay.Hotkeys);
+        Assert.AreEqual("Ctrl+Shift+F9", vm.Gui.SpeedOverlayCloseHotkey);
+        Assert.IsTrue(window.GetLogicalDescendants().OfType<MenuItem>().Any(m => Equals(m.Header, "Close (Ctrl+Shift+F9)…")));
+    });
+
+    [TestMethod]
+    public void SpeedOverlayHotkeysResetStatsAndClose() => Run("speed-overlay-hotkeys", BuiltInSchemes.DarkName, ActiveSynchronous(), (window, vm) =>
+    {
+        vm.ShowSpeedOverlay = true;
+        Flush();
+        var overlay = window.SpeedOverlay!;
+        var overlayViewModel = (SpeedOverlayViewModel)overlay.DataContext!;
+
+        FeedSpeeds(vm.SpeedRecorder);
+        overlayViewModel.Refresh();
+        Assert.AreEqual("24.0", overlayViewModel.Max);
+
+        overlay.Perform(OverlayAction.Reset);
+        Assert.AreEqual("-", overlayViewModel.Max);
+
+        overlay.Perform(OverlayAction.Close);
+        Flush();
+        Assert.IsNull(window.SpeedOverlay);
+        Assert.IsFalse(vm.ShowSpeedOverlay);
+    });
+
+    [TestMethod]
+    public void HotkeyDialogCapturesOnlyValidCombinations() => Run("hotkey-dialog", BuiltInSchemes.LightName, ActiveSynchronous(), (window, vm) =>
+    {
+        var defaults = OverlayHotkeys.Default;
+        var dialog = new HotkeyDialogWindow(defaults, OverlayAction.Lock);
+        dialog.Show(window);
+        Flush();
+
+        Assert.IsFalse(dialog.Capture(KeyModifiers.Shift, Key.A));
+        Assert.IsFalse(dialog.Capture(KeyModifiers.Control, Key.LeftCtrl));
+        Assert.IsFalse(dialog.Capture(defaults.Close.Modifiers, defaults.Close.Key));
+        Assert.AreEqual(defaults.Lock, dialog.Selected);
+        Capture(dialog, "hotkey-dialog-conflict");
+
+        Assert.IsTrue(dialog.Capture(KeyModifiers.Alt | KeyModifiers.Shift, Key.D7));
+        Assert.AreEqual(new Hotkey(KeyModifiers.Alt | KeyModifiers.Shift, Key.D7), dialog.Selected);
+        Capture(dialog, "hotkey-dialog-window");
+        dialog.Close();
     });
 
     private static void ClickMenuItem(ILogical root, string header)

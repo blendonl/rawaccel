@@ -1,9 +1,11 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
+using grapher.Platform;
 using grapher.Settings;
 using grapher.Theming;
 using grapher.ViewModels;
@@ -36,6 +38,7 @@ public partial class MainWindow : Window
         viewModel.DeviceMenuRequested += async (_, _) => await ShowDeviceMenu();
         viewModel.AboutRequested += async (_, _) => await new AboutWindow { DataContext = viewModel }.ShowDialog(this);
         viewModel.ProfileDialogRequested += async (_, request) => await ShowProfileDialog(request);
+        viewModel.HotkeyDialogRequested += async (_, action) => await ShowHotkeyDialog(action);
         viewModel.PropertyChanged += OnViewModelPropertyChanged;
         BuildThemeMenu();
         RestorePlacement(viewModel.Gui.Window);
@@ -156,6 +159,10 @@ public partial class MainWindow : Window
         {
             UpdateSpeedOverlay();
         }
+        else if (e.PropertyName == nameof(MainWindowViewModel.SpeedOverlayHotkeys) && viewModel is not null && speedOverlay is not null)
+        {
+            speedOverlay.Hotkeys = viewModel.SpeedOverlayHotkeys;
+        }
     }
 
     private void UpdateSpeedOverlay()
@@ -179,7 +186,9 @@ public partial class MainWindow : Window
         speedOverlay = new SpeedOverlayWindow(new SpeedOverlayViewModel(viewModel.SpeedRecorder), viewModel.Themes)
         {
             Position = speedOverlayPosition ?? DefaultSpeedOverlayPosition(),
+            Hotkeys = viewModel.SpeedOverlayHotkeys,
         };
+        speedOverlay.HotkeysUnavailable += OnSpeedOverlayHotkeysUnavailable;
         speedOverlay.Closing += OnSpeedOverlayClosing;
         speedOverlay.Closed += OnSpeedOverlayClosed;
         speedOverlay.Show();
@@ -197,6 +206,7 @@ public partial class MainWindow : Window
     {
         if (speedOverlay is not null)
         {
+            speedOverlay.HotkeysUnavailable -= OnSpeedOverlayHotkeysUnavailable;
             speedOverlay.Closing -= OnSpeedOverlayClosing;
             speedOverlay.Closed -= OnSpeedOverlayClosed;
             speedOverlay = null;
@@ -205,6 +215,23 @@ public partial class MainWindow : Window
         if (viewModel is not null)
         {
             viewModel.ShowSpeedOverlay = false;
+        }
+    }
+
+    private void OnSpeedOverlayHotkeysUnavailable(object? sender, IReadOnlyList<Hotkey> hotkeys) => viewModel?.ReportHotkeysUnavailable(hotkeys);
+
+    private async System.Threading.Tasks.Task ShowHotkeyDialog(OverlayAction action)
+    {
+        if (viewModel is null)
+        {
+            return;
+        }
+
+        var dialog = new HotkeyDialogWindow(viewModel.SpeedOverlayHotkeys, action);
+
+        if (await dialog.ShowDialog<Hotkey?>(this) is { } hotkey)
+        {
+            viewModel.SpeedOverlayHotkeys = viewModel.SpeedOverlayHotkeys.With(action, hotkey);
         }
     }
 

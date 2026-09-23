@@ -1,0 +1,23 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="grapher.Views.HotkeyDialogWindow"
+        Title="Speed overlay hotkey"
+        Icon="/Assets/mouse.ico"
+        SizeToContent="WidthAndHeight"
+        CanResize="False"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False"
+        Background="{DynamicResource RaBackgroundBrush}"
+        Foreground="{DynamicResource RaForegroundBrush}">
+  <StackPanel Margin="24" Spacing="8" MinWidth="320">
+    <TextBlock x:Name="Prompt" TextWrapping="Wrap" MaxWidth="320" />
+    <TextBlock Classes="hint" Text="Use Ctrl, Alt or Win with a letter, digit or F1–F24." TextWrapping="Wrap" MaxWidth="320" />
+    <TextBlock x:Name="Combination" Classes="section" FontSize="20" HorizontalAlignment="Center" Margin="0,8,0,0" />
+    <TextBlock x:Name="Conflict" Foreground="{DynamicResource RaErrorBrush}" TextWrapping="Wrap" MaxWidth="320" HorizontalAlignment="Center" Margin="0,0,0,8" />
+    <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+      <Button Content="Reset to default" Click="OnResetClick" />
+      <Button x:Name="SaveButton" Classes="accent" Content="Save" Click="OnSaveClick" />
+      <Button Content="Cancel" Click="OnCancelClick" />
+    </StackPanel>
+  </StackPanel>
+</Window>

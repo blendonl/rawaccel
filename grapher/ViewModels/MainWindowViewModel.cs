@@ -115,6 +115,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
 
         showVelocityAndGain = gui.ShowVelocityAndGain;
         showLastMouseMove = gui.ShowLastMouseMove;
+        speedOverlayHotkeys = gui.SpeedOverlayHotkeys;
         autoApplyOnStartup = gui.AutoWriteToDriverOnStartup;
         chartDpiText = gui.DPI.ToString();
         chartPollRateText = gui.PollRate.ToString();
@@ -138,6 +139,8 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     public event EventHandler? DeviceMenuRequested;
 
     public event EventHandler? AboutRequested;
+
+    public event EventHandler<OverlayAction>? HotkeyDialogRequested;
 
     public event EventHandler<ProfileDialogRequest>? ProfileDialogRequested;
 
@@ -207,6 +210,12 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
 
     public SpeedRecorder SpeedRecorder { get; } = new();
 
+    public string LockHotkeyHeader => $"Lock / unlock ({SpeedOverlayHotkeys.Lock})…";
+
+    public string ResetHotkeyHeader => $"Reset stats ({SpeedOverlayHotkeys.Reset})…";
+
+    public string CloseHotkeyHeader => $"Close ({SpeedOverlayHotkeys.Close})…";
+
     public double ChartMaxSpeed => CurveSampler.MaxSpeed(Gui.DPI);
 
     [ObservableProperty]
@@ -253,6 +262,10 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
 
     [ObservableProperty]
     private bool showSpeedOverlay;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(LockHotkeyHeader), nameof(ResetHotkeyHeader), nameof(CloseHotkeyHeader))]
+    private OverlayHotkeys speedOverlayHotkeys;
 
     [ObservableProperty]
     private bool autoApplyOnStartup;
@@ -354,10 +367,14 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     {
         Gui.ShowVelocityAndGain = ShowVelocityAndGain;
         Gui.ShowLastMouseMove = ShowLastMouseMove;
+        Gui.SpeedOverlayHotkeys = SpeedOverlayHotkeys;
         Gui.AutoWriteToDriverOnStartup = AutoApplyOnStartup;
         Gui.CurrentColorScheme = themes.SelectedName;
         Gui.TrySave(paths.GuiSettingsFile);
     }
+
+    public void ReportHotkeysUnavailable(IReadOnlyList<Hotkey> hotkeys) =>
+        ShowStatus($"{string.Join(", ", hotkeys)} {(hotkeys.Count == 1 ? "is" : "are")} already used by another program. Choose other keys under View → Speed overlay hotkeys.", isError: true);
 
     public void Dispose() => frameTimer.Stop();
 
@@ -430,6 +447,9 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
 
     [RelayCommand]
     private void OpenAbout() => AboutRequested?.Invoke(this, EventArgs.Empty);
+
+    [RelayCommand]
+    private void ChangeSpeedOverlayHotkey(OverlayAction action) => HotkeyDialogRequested?.Invoke(this, action);
 
     [RelayCommand]
     private void DismissStatus() => StatusMessage = null;
@@ -633,6 +653,8 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     }
 
     partial void OnAutoApplyOnStartupChanged(bool value) => SaveGuiSettings();
+
+    partial void OnSpeedOverlayHotkeysChanged(OverlayHotkeys value) => SaveGuiSettings();
 
     partial void OnSelectedProfileChanged(ProfileOption? value)
     {
